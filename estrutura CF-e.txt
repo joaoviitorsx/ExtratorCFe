@@ -1,0 +1,141 @@
+
+A - Dados do Cupom Fiscal Eletrônico
+CFe: TAG raiz do CF-e. 
+A01 - infCFe: Grupo que contém as informações do CF-e. 
+A03 - versaoDadosEnt: Versão do leiaute do arquivo de dados enviado pelo Aplicativo Comercial. 
+
+B - Identificação do Cupom Fiscal Eletrônico 
+B01 - ide: Grupo com as informações de identificação do CF-e. 
+B11 - CNPJ: CNPJ da empresa desenvolvedora do Aplicativo Comercial. 
+B12 - signAC: Assinatura do Aplicativo Comercial. 
+B14 - numeroCaixa: Número do Caixa ao qual o SAT está conectado. 
+
+C - Emitente do Cupom Fiscal Eletrônico
+C01 - emit: Grupo de identificação do emitente do CF-e. 
+C02 - CNPJ: CNPJ do emitente. 
+C12 - IE: Inscrição Estadual do emitente. 
+C13 - IM: Inscrição Municipal do emitente. 
+C15 - cRegTribISSQN: Regime Especial de Tributação do ISSQN. 
+C16 - indRatISSQN: Indicador de rateio do Desconto sobre subtotal entre itens sujeitos à tributação pelo ISSQN. 
+
+E - Identificação do Destinatário do Cupom Fiscal Eletrônico 
+E01 - dest: Grupo de identificação do Destinatário do CF-e. 
+E02 - CNPJ: CNPJ do destinatário. 
+E03 - CPF: CPF do destinatário. 
+E04 - xNome: Razão Social ou Nome do destinatário. 
+
+G - Identificação do Local de Entrega
+G01 - entrega: Grupo de identificação do Local de entrega. 
+G02 - xLgr: Logradouro do local de entrega. 
+G03 - nro: Número do local de entrega. 
+G04 - xCpl: Complemento do endereço de entrega. 
+G05 - xBairro: Bairro do local de entrega. 
+G06 - xMun: Nome do município do local de entrega. 
+G07 - UF: Sigla da UF do local de entrega. 
+
+H - Detalhamento de Produtos e Serviços do CF-e
+H01 - det: Grupo do detalhamento de Produtos e Serviços do CF-e. 
+H02 - nItem: Número do item. 
+
+I - Produtos e Serviços do CF-e 
+I01 - prod: TAG de grupo do detalhamento de Produtos e Serviços do CF-e. 
+I02 - cProd: Código do produto ou serviço. 
+I03 - cEAN: GTIN (antigo código EAN) do produto. 
+I04 - xProd: Descrição do produto ou serviço. 
+I05 - NCM: Código NCM (Nomenclatura Comum do Mercosul). 
+I05w - CEST: Código Especificador da Substituição Tributária. 
+I06 - CFOP: Código Fiscal de Operações e Prestações. 
+I07 - uCom: Unidade Comercial do produto. 
+I08 - qCom: Quantidade Comercial do produto. 
+I09 - vUnCom: Valor Unitário de Comercialização do produto. 
+I11 - indRegra: Regra de cálculo para o Valor Bruto dos Produtos e Serviços. 
+I12 - vDesc: Valor do Desconto sobre o item. 
+I13 - vOutro: Outras despesas acessórias sobre o item. 
+I17 - obsFiscoDet: Grupo do campo de uso livre do Fisco. 
+I18 - xCampoDet: Identificação do campo de uso livre do Fisco. 
+I19 - xTextoDet: Conteúdo do campo de uso livre do Fisco. 
+
+M - Tributos Incidentes no Produto ou Serviço 
+M01 - imposto: Grupo de Tributos incidentes no Produto ou Serviço. 
+M02 - vItem12741: Valor aproximado dos tributos do Produto ou serviço, conforme a Lei 12741/12. 
+
+N - ICMS Normal e ST
+N01 - ICMS: Grupo do ICMS da Operação própria e ST. 
+N02 - ICMS00: Grupo de Tributação do ICMS para 00, 20, 90. 
+N03 - ICMS40: Grupo de Tributação do ICMS para 40, 41, 60. 
+N04 - ICMSSN102: Grupo de Tributação do ICMS pelo Simples Nacional para CSOSN 102, 300, 400, 500. 
+N05 - ICMSSN900: Grupo de Tributação do ICMS pelo Simples Nacional para CSOSN 900. 
+N06 - Orig: Origem da mercadoria. 
+N07 - CST: Código de Situação Tributária do ICMS. 
+N08 - pICMS: Alíquota efetiva do imposto. 
+N10 - CSOSN: Código de Situação da Operação – Simples Nacional. 
+
+Q - PIS
+Q01 - PIS: Grupo do PIS. 
+Q02 - PISAliq: Grupo de PIS tributado pela alíquota. 
+Q03 - PISQtde: Grupo de PIS tributado por quantidade. 
+Q04 - PISNT: Grupo de PIS não tributado. 
+Q05 - PISSN: Grupo de PIS para contribuinte do Simples Nacional. 
+Q06 - PISOutr: Grupo de PIS para Outras Operações. 
+Q07 - CST: Código de Situação Tributária do PIS. 
+Q08 - vBC: Valor da Base de Cálculo do PIS. 
+Q09 - pPIS: Alíquota do PIS em percentual. 
+Q11 - qBCProd: Quantidade Vendida para base de cálculo do PIS. 
+Q12 - vAliqProd: Alíquota do PIS em reais. 
+
+R - PIS ST
+R01 - PISST: Grupo de PIS Substituição Tributária. 
+R02 - vBC: Valor da Base de Cálculo do PIS ST. 
+R03 - pPIS: Alíquota do PIS ST em percentual. 
+R04 - qBCProd: Quantidade Vendida para base de cálculo do PIS ST. 
+R05 - vAliqProd: Alíquota do PIS ST em reais. 
+
+S - COFINS
+S01 - COFINS: Grupo do COFINS. 
+S02 - COFINSAliq: Grupo de COFINS tributado pela alíquota. 
+S03 - COFINSQtde: Grupo de COFINS tributado por quantidade. 
+S04 - COFINSNT: Grupo de COFINS não tributado. 
+S05 - COFINSSN: Grupo de COFINS para contribuinte do Simples Nacional. 
+S06 - COFINSOutr: Grupo de COFINS para Outras Operações. 
+S07 - CST: Código de Situação Tributária da COFINS. 
+S08 - vBC: Valor da Base de Cálculo da COFINS. 
+S09 - pCOFINS: Alíquota da COFINS em percentual. 
+S11 - qBCProd: Quantidade Vendida para base de cálculo da COFINS. 
+S12 - vAliqProd: Alíquota da COFINS em reais. 
+
+T - COFINS ST
+T01 - COFINSST: Grupo de COFINS Substituição Tributária. 
+T02 - vBC: Valor da Base de Cálculo da COFINS ST. 
+T03 - pCOFINS: Alíquota da COFINS ST em percentual. 
+T04 - qBCProd: Quantidade Vendida para base de cálculo da COFINS ST. 
+T05 - vAliqProd: Alíquota da COFINS ST em reais. 
+
+U - ISSQN
+U01 - ISSQN: Grupo do ISSQN. 
+U02 - vDeducISSQN: Valor das deduções para a base de cálculo do ISSQN. 
+U04 - vAliq: Alíquota do ISSQN. 
+U06 - cMunFG: Código do município de ocorrência do fato gerador do ISSQN. 
+U07 - cListServ: Item da Lista de Serviços. 
+U08 - cServTribMun: Código de tributação pelo ISSQN do município. 
+U09 - cNatOp: Natureza da Operação de ISSQN. 
+U10 - indIncFisc: Indicador de Incentivo Fiscal do ISSQN. 
+
+V - Informações Adicionais
+V01 - infAdProd: Informações Adicionais do Produto. 
+W - Valores Totais do CF-e
+W01 - total: Grupo de Valores Totais do CF-e. 
+W19 - DescAcrEntr: Grupo de valores de entrada de Desconto/Acréscimo sobre Subtotal. 
+W20 - vDescSubtot: Valor de Entrada de Desconto sobre Subtotal. 
+W21 - vAcresSubtot: Valor de Entrada de Acréscimo sobre Subtotal. 
+W22 - vCFeLei12741: Valor aproximado dos tributos do CF-e-SAT, conforme a Lei 12741/12. 
+
+WA - Informações sobre Pagamento 
+WA01 - pgto: Grupo de informações sobre Pagamento do CF-e. 
+WA02 - MP: Grupo de informações dos Meios de Pagamento. 
+WA03 - cMP: Código do Meio de Pagamento. 
+WA04 - vMP: Valor do Meio de Pagamento. 
+WA05 - cAdmC: Código da Credenciadora de cartão de débito ou crédito. 
+
+Z - Informações Adicionais do CF-e 
+Z01 - infAdic: Grupo de Informações Adicionais. 
+Z02 - infCpl: Informações Complementares de interesse do Contribuinte. 

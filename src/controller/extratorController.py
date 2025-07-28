@@ -1,12 +1,27 @@
 from src.service.extratorService import ExtratorService
+from src.service.exportarService import ExportService
 
 class ExtratorController:
     def __init__(self):
-        self.service = ExtratorService()
+        self.extrator_service = ExtratorService()
+        self.export_service = ExportService()
 
-    def processar_pasta(self, pasta_path: str):
+    def processar(self, pasta_xml: str, caminho_planilha: str) -> dict:
         try:
-            resultados = self.service.ler_xmls(pasta_path)
-            return {"status": "sucesso", "mensagem": f"{len(resultados)} arquivos processados.", "dados": resultados}
+            #Processa os arquivos XML e classifica
+            resultado = self.extrator_service.processarPasta(pasta_xml)
+
+            #Gera a planilha no local indicado
+            caminho_final = self.export_service.gerarPlanilha(resultado, caminho_planilha)
+
+            return {
+                "status": "sucesso",
+                "mensagem": f"Processamento concluído. Planilha salva em:\n{caminho_final}",
+                "arquivo": caminho_final
+            }
+
         except Exception as e:
-            return {"status": "erro", "mensagem": str(e)}
+            return {
+                "status": "erro",
+                "mensagem": f"Ocorreu um erro no processamento: {str(e)}"
+            }
