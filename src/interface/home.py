@@ -1,81 +1,166 @@
+import os
 import flet as ft
+import time
+import threading
+from enum import Enum
+
 from src.components.notificacao import notificacao
 from src.controller.extratorController import ExtratorController
+from src.config import theme
+from src.components.sections import header_section, drop_zone_section
+from src.components.card import folderCard, processingCard, completedCard
+
+
+class ProcessingState(Enum):
+    IDLE = "idle"
+    FOLDER_SELECTED = "folder_selected"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    ERROR = "error"
+
 
 def HomePage(page: ft.Page):
+    th = theme.get_theme()
     controller = ExtratorController()
 
-    pasta_selecionada = ft.Text("Nenhuma pasta selecionada", size=14, italic=True)
-    status_text = ft.Text("Aguardando ação...", size=16)
+    state = {
+        "status": ProcessingState.IDLE,
+        "folder_path": "",
+        "folder_name": "",
+        "total_files": 0,
+        "processed_files": 0,
+        "errors": []
+    }
 
     pasta_picker = ft.FilePicker()
     salvar_picker = ft.FilePicker()
+    page.overlay.extend([pasta_picker, salvar_picker])
 
-    def pastaSelecionada(e):
+    main_view = ft.Container(expand=True)
+
+    def render():
+        current = state["status"]
+        if current == ProcessingState.IDLE:
+            main_view.content = idle_view()
+        elif current == ProcessingState.FOLDER_SELECTED:
+            main_view.content = folder_selected_view()
+        elif current == ProcessingState.PROCESSING:
+            main_view.content = processing_view()
+        elif current == ProcessingState.COMPLETED:
+            main_view.content = completed_view()
+        page.update()
+
+    def idle_view():
+        return ft.Column([
+            header_section(),
+            drop_zone_section(lambda e: pasta_picker.get_directory_path())
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
+
+    def folder_selected_view():
+        return ft.Column([
+            header_section(),
+            folderCard(state['folder_name'], state['total_files'], lambda e: resetar()),
+            ft.ElevatedButton(
+                "Iniciar Processamento", 
+                icon=ft.Icons.UPLOAD, 
+                on_click=lambda e: iniciar_processamento()
+            )
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
+
+    def processing_view():
+        return ft.Column([
+            header_section(),
+            processingCard(state['folder_name'], state['processed_files'], state['total_files'])
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
+
+    def completed_view():
+        return ft.Column([
+            header_section(),
+            completedCard(
+                state['total_files'],
+                state['errors'],
+                lambda e: salvar_picker.save_file(file_type="xlsx", dialog_title="Salvar planilha como..."),  # <-- abre o FilePicker só aqui
+                lambda e: resetar()
+            )
+        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
+
+    def pasta_escolhida(e):
         if e.path:
-            pasta_selecionada.value = f"Pasta selecionada: {e.path}"
-            pasta_selecionada.color = "green"
-            pasta_selecionada.update()
-            notificacao(page, "Pasta selecionada", f"{e.path}", tipo="info")
+            state["folder_path"] = e.path
+            state["folder_name"] = e.path.split("\\")[-1]
 
-    pasta_picker.on_result = pastaSelecionada
+            total_xml = len([
+                f for f in os.listdir(e.path)
+                if f.lower().endswith(".xml") and os.path.isfile(os.path.join(e.path, f))
+            ])
 
-    def salvarPlanilha(e):
+            state["total_files"] = total_xml
+            state["status"] = ProcessingState.FOLDER_SELECTED
+
+            notificacao(page, "Pasta selecionada", f"{e.path} - {total_xml} arquivos XML encontrados", tipo="info")
+            render()
+
+    def iniciar_processamento():
+        state["status"] = ProcessingState.PROCESSING
+        render()
+
+        def processar():
+            for i in range(state["total_files"] + 1):
+                state["processed_files"] = i
+                render()
+                time.sleep(0.05)
+
+            resultado = controller.processar_pasta(state["folder_path"])
+
+            if resultado["status"] == "sucesso":
+                notificacao(page, "Processamento concluído", resultado["mensagem"], tipo="sucesso")
+                state["status"] = ProcessingState.COMPLETED
+            else:
+                notificacao(page, "Erro", resultado["mensagem"], tipo="erro")
+                state["status"] = ProcessingState.ERROR
+
+            render()
+
+        threading.Thread(target=processar, daemon=True).start()
+
+    def salvar_planilha(e):
         if not e.path:
-            notificacao(page, "Aviso", "Você cancelou o salvamento do arquivo.", tipo="alerta")
+            notificacao(page, "Aviso", "Salvamento cancelado", tipo="alerta")
             return
 
-        caminhoPlanilha = e.path
-        if not caminhoPlanilha.lower().endswith(".xlsx"):
-            caminhoPlanilha += ".xlsx"
+        caminho_planilha = e.path
+        if not caminho_planilha.lower().endswith(".xlsx"):
+            caminho_planilha += ".xlsx"
 
-        pasta = pasta_selecionada.value.replace("Pasta selecionada: ", "")
+        resultado_exportacao = controller.exportar_planilha(caminho_planilha)
 
-        resultado = controller.processar(pasta, caminhoPlanilha)
-
-        if resultado["status"] == "sucesso":
-            notificacao(page, "Processamento Concluído", resultado["mensagem"], tipo="sucesso")
-            status_text.value = resultado["mensagem"]
+        if resultado_exportacao["status"] == "sucesso":
+            notificacao(page, "Planilha salva", resultado_exportacao["mensagem"], tipo="sucesso")
         else:
-            notificacao(page, "Erro", resultado["mensagem"], tipo="erro")
-            status_text.value = "Erro no processamento."
+            notificacao(page, "Erro", resultado_exportacao["mensagem"], tipo="erro")
 
-        status_text.update()
+    def resetar():
+        state.update({
+            "status": ProcessingState.IDLE,
+            "folder_path": "",
+            "folder_name": "",
+            "total_files": 0,
+            "processed_files": 0,
+            "errors": []
+        })
+        render()
 
-    salvar_picker.on_result = salvarPlanilha
+    pasta_picker.on_result = pasta_escolhida
+    salvar_picker.on_result = salvar_planilha
 
-    def processarArquivos(e):
-        if "Pasta selecionada:" not in pasta_selecionada.value:
-            notificacao(page, "Erro", "Selecione uma pasta antes de iniciar!", tipo="erro")
-            return
-
-        salvar_picker.save_file(file_type="xlsx", dialog_title="Salvar Planilha como...")
-
-    btn_escolher_pasta = ft.ElevatedButton(
-        "Selecionar Pasta", on_click=lambda _: pasta_picker.get_directory_path()
-    )
-    btn_processar = ft.ElevatedButton("Iniciar Processamento", on_click=processarArquivos)
-
-    page.overlay.append(pasta_picker)
-    page.overlay.append(salvar_picker)
+    page.add(ft.Container(
+        content=ft.Column([main_view], expand=True, alignment=ft.MainAxisAlignment.CENTER),
+        expand=True,
+        padding=30
+    ))
+    render()
 
     return ft.View(
-        "/home",
-        controls=[
-            ft.Column(
-                [
-                    ft.Text("Extrator CF-e", size=30, weight="bold"),
-                    ft.Text("Escolha a pasta com arquivos XML para processar.", size=16),
-                    btn_escolher_pasta,
-                    pasta_selecionada,
-                    btn_processar,
-                    ft.Divider(),
-                    status_text
-                ],
-                alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                expand=True,
-                spacing=20
-            )
-        ],
+        route="/home", 
+        controls=page.controls
     )
