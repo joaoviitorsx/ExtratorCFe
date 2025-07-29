@@ -160,9 +160,18 @@ def parseCfe(file_path: str) -> Optional[CFeModel]:
         })
 
     assinatura = root.findtext('.//assinaturaQRCODE', "-")
-    status = 'cancelamento_validado' if is_cancel and assinatura != "-" else (
-             'cancelamento_presat' if is_cancel else
-             'venda_validada' if assinatura != "-" else 'venda_presat')
+
+    tem_emit = inf.find('emit') is not None
+    tem_itens = len(inf.findall('det')) > 0
+    tem_total = inf.find('total') is not None
+
+    if not (tem_emit and tem_itens and tem_total):
+        status = 'fora_padrao'
+    else:
+        if is_cancel:
+            status = 'cancelamento_validado' if assinatura != "-" else 'cancelamento_presat'
+        else:
+            status = 'venda_validada' if assinatura != "-" else 'venda_presat'
 
     return CFeModel(
         chave=chave,

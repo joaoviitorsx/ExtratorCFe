@@ -29,6 +29,8 @@ def HomePage(page: ft.Page):
         "folder_name": "",
         "total_files": 0,
         "processed_files": 0,
+        "validos": 0,
+        "cancelados": 0,
         "errors": []
     }
 
@@ -41,50 +43,53 @@ def HomePage(page: ft.Page):
     def render():
         current = state["status"]
         if current == ProcessingState.IDLE:
-            main_view.content = idle_view()
+            main_view.content = viewIdle()
         elif current == ProcessingState.FOLDER_SELECTED:
-            main_view.content = folder_selected_view()
+            main_view.content = viewFolderSelected()
         elif current == ProcessingState.PROCESSING:
-            main_view.content = processing_view()
+            main_view.content = viewProcessing()
         elif current == ProcessingState.COMPLETED:
-            main_view.content = completed_view()
+            main_view.content = viewCompleted()
         page.update()
 
-    def idle_view():
+    def viewIdle():
         return ft.Column([
             header_section(),
             drop_zone_section(lambda e: pasta_picker.get_directory_path())
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
 
-    def folder_selected_view():
+    def viewFolderSelected():
         return ft.Column([
             header_section(),
-            folderCard(state['folder_name'], state['total_files'], lambda e: resetar()),
-            ft.ElevatedButton(
-                "Iniciar Processamento", 
-                icon=ft.Icons.UPLOAD, 
-                on_click=lambda e: iniciar_processamento()
+            processingCard(
+                state['folder_name'],
+                state['processed_files'],
+                state['total_files'],
+                on_start=lambda e: iniciarProcessamento()
             )
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
 
-    def processing_view():
+    def viewProcessing():
         return ft.Column([
             header_section(),
             processingCard(state['folder_name'], state['processed_files'], state['total_files'])
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
 
-    def completed_view():
+    def viewCompleted():
         return ft.Column([
             header_section(),
             completedCard(
-                state['total_files'],
-                state['errors'],
-                lambda e: salvar_picker.save_file(file_type="xlsx", dialog_title="Salvar planilha como..."),  # <-- abre o FilePicker só aqui
-                lambda e: resetar()
+                total_files=state['total_files'],
+                validos=state['validos'],
+                cancelados=state['cancelados'],
+                erros=len(state['errors']),
+                lista_erros=state['errors'],
+                on_download=lambda e: salvar_picker.save_file(file_type="xlsx", dialog_title="Salvar planilha como..."),
+                on_new_folder=lambda e: resetar()
             )
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
 
-    def pasta_escolhida(e):
+    def pastaEscolhida(e):
         if e.path:
             state["folder_path"] = e.path
             state["folder_name"] = e.path.split("\\")[-1]
@@ -100,7 +105,7 @@ def HomePage(page: ft.Page):
             notificacao(page, "Pasta selecionada", f"{e.path} - {total_xml} arquivos XML encontrados", tipo="info")
             render()
 
-    def iniciar_processamento():
+    def iniciarProcessamento():
         state["status"] = ProcessingState.PROCESSING
         render()
 
@@ -115,6 +120,9 @@ def HomePage(page: ft.Page):
             if resultado["status"] == "sucesso":
                 notificacao(page, "Processamento concluído", resultado["mensagem"], tipo="sucesso")
                 state["status"] = ProcessingState.COMPLETED
+                state["validos"] = resultado["validos"]
+                state["cancelados"] = resultado["cancelados"]
+                state["errors"] = resultado["lista_erros"]
             else:
                 notificacao(page, "Erro", resultado["mensagem"], tipo="erro")
                 state["status"] = ProcessingState.ERROR
@@ -123,7 +131,7 @@ def HomePage(page: ft.Page):
 
         threading.Thread(target=processar, daemon=True).start()
 
-    def salvar_planilha(e):
+    def salvarPlanilha(e):
         if not e.path:
             notificacao(page, "Aviso", "Salvamento cancelado", tipo="alerta")
             return
@@ -133,9 +141,39 @@ def HomePage(page: ft.Page):
             caminho_planilha += ".xlsx"
 
         resultado_exportacao = controller.exportarPlanilha(caminho_planilha)
+        print(f"Resultado da exportação: {resultado_exportacao}")
+
+        def fecharDialog(e=None):
+            page.close(dialog)
+            page.update()
+
+        def abrirPlanilha(e=None):
+            print(f"Abrindo planilha: {caminho_planilha}")
+            import subprocess, sys
+            page.close(dialog)
+            page.update()
+            if sys.platform == "win32":
+                os.startfile(caminho_planilha)
+            else:
+                subprocess.Popen(["open", caminho_planilha])
 
         if resultado_exportacao["status"] == "sucesso":
-            notificacao(page, "Planilha salva", resultado_exportacao["mensagem"], tipo="sucesso")
+            print("Exportação sucesso, mostrando dialog")
+
+            dialog = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Planilha gerada com sucesso!"),
+                content=ft.Text("Deseja abrir a planilha agora?"),
+                actions=[
+                    ft.TextButton("Abrir", on_click=abrirPlanilha),
+                    ft.TextButton("Fechar", on_click=fecharDialog)
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+
+            page.dialog = dialog
+            dialog.open = True
+            page.update()
         else:
             notificacao(page, "Erro", resultado_exportacao["mensagem"], tipo="erro")
 
@@ -146,12 +184,14 @@ def HomePage(page: ft.Page):
             "folder_name": "",
             "total_files": 0,
             "processed_files": 0,
+            "validos": 0,
+            "cancelados": 0,
             "errors": []
         })
         render()
 
-    pasta_picker.on_result = pasta_escolhida
-    salvar_picker.on_result = salvar_planilha
+    pasta_picker.on_result = pastaEscolhida
+    salvar_picker.on_result = salvarPlanilha
 
     page.add(ft.Container(
         content=ft.Column([main_view], expand=True, alignment=ft.MainAxisAlignment.CENTER),

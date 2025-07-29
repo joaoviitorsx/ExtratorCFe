@@ -1,0 +1,24 @@
+<CFeCanc>
+  <infCFe Id="CFe23250732768826000191592301246882083509050774" versao="0.09">
+    <ide>
+      <cUF>23</cUF>
+      <cNF>123456</cNF>
+      <mod>59</mod>
+      <nserieSAT>230124688</nserieSAT>
+      <nCFe>000123</nCFe>
+      <dEmi>20250726</dEmi>
+      <hEmi>101530</hEmi>
+      <CNPJ>07363764000352</CNPJ>
+      <signAC>...</signAC>
+      <numeroCaixa>001</numeroCaixa>
+    </ide>
+    <emit>
+      <CNPJ>32768826000191</CNPJ>
+      <xNome>ATACADO DO VALE COMERCIO DE ALIMENTOS LTDA</xNome>
+    </emit>
+    <total>
+      <vCFe>0.00</vCFe>
+    </total>
+  </infCFe>
+  <Signature>...</Signature>
+</CFeCanc>
