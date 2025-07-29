@@ -1,104 +1,143 @@
 import os
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
+import pandas as pd
+from typing import List
 from src.models.cfeModel import CFeModel
 
 class ExportService:
     def __init__(self):
-        pass 
+        pass
 
-    def gerarPlanilha(self, dados: dict, caminho_arquivo: str):
-        wb = Workbook()
-        wb.remove(wb.active)
+    def gerarPlanilha(self, cfes: List[CFeModel], caminho_saida: str) -> str:
+        headers = [
+            # 📌 Bloco geral (infCFe / ide)
+            "Chave", "Versão CF-e", "Versão Dados Ent", "Versão SAT",
+            "Código UF", "Código Numérico", "Modelo", "Nº Série SAT", "Nº CF-e",
+            "Data Emissão", "Hora Emissão", "Dígito Verificador", "Tipo Ambiente",
+            "CNPJ Software House", "Assinatura AC", "Assinatura QR Code", "Número do Caixa",
 
-        if dados["venda_validada"]:
-            self.abaVendas(wb, "Venda Validada", dados["venda_validada"])
+            # 📌 Emitente
+            "CNPJ Emitente", "Nome Social", "Nome Fantasia",
+            "Logradouro Emitente", "Número Emitente", "Complemento Emitente",
+            "Bairro Emitente", "Município Emitente", "CEP Emitente",
+            "IE Emitente", "Regime Tributário", "Indicador ISSQN",
 
-        if dados["venda_presat"]:
-            self.abaVendas(wb, "Venda Pré-SAT", dados["venda_presat"])
+            # 📌 Destinatário
+            "CPF/CNPJ Destinatário", "Nome Destinatário",
 
-        if dados["cancelamento_validado"]:
-            self.abaCancelamento(wb, "Cancelamento Validado", dados["cancelamento_validado"])
+            # 📌 Produtos (cada linha vai repetir os dados do CF-e para cada produto)
+            "Código Produto", "Descrição Produto", "EAN", "NCM", "CEST", "CFOP",
+            "Unidade", "Quantidade", "V. Unitário", "V. Total", "Desconto", "Outros",
+            "Regra",
 
-        if dados["cancelamento_presat"]:
-            self.abaCancelamento(wb, "Cancelamento Pré-SAT", dados["cancelamento_presat"])
+            # 📌 Impostos por item
+            "Valor Tributos Lei 12741", 
+            "ICMS Origem", "ICMS CST", "ICMS Alíquota", "ICMS Valor",
+            "PIS CST", "PIS Base", "PIS Alíquota", "PIS Valor",
+            "COFINS CST", "COFINS Base", "COFINS Alíquota", "COFINS Valor",
 
-        if dados["fora_padrao"]:
-            self.abaFalha(wb, "Arquivos Ignorados", dados["fora_padrao"])
+            # 📌 Totais
+            "Total ICMS", "Total Produtos", "Total Desconto", "Total PIS", "Total COFINS",
+            "Total CF-e", "Total Tributos Lei 12741",
 
-        wb.save(caminho_arquivo)
-        return caminho_arquivo
+            # 📌 Pagamento
+            "Forma Pagamento", "Valor Pago", "Troco",
 
-    def abaVendas(self, wb: Workbook, nome_aba: str, lista_cfe: list):
-        ws = wb.create_sheet(nome_aba)
-        ws.append([
-            "Chave", "Data Emissão", "CNPJ Emitente", "Nome Emitente", 
-            "CPF/CNPJ Cliente", "Nome Cliente", 
-            "Produto", "Quantidade", "V. Unitário", "V. Total", "NCM", "CFOP"
-        ])
-        self.cabecalho(ws)
+            # 📌 Informações adicionais
+            "Observações do Fisco", "Informações Complementares"
+        ]
 
-        for cfe in lista_cfe:
-            data_emissao = cfe.ide.get("dEmi") if cfe.ide else ""
-            cnpj_emitente = cfe.emitente.get("CNPJ") if cfe.emitente else ""
-            nome_emitente = cfe.emitente.get("xNome") if cfe.emitente else ""
-            cpf_cnpj_cliente = cfe.destinatario.get("CPF") or cfe.destinatario.get("CNPJ") if cfe.destinatario else ""
-            nome_cliente = cfe.destinatario.get("xNome") if cfe.destinatario else ""
+        linhas = []
+
+        for cfe in cfes:
+            ide = cfe.ide
+            emit = cfe.emitente
+            dest = cfe.destinatario
+            totais = cfe.totais
+            pagamentos = cfe.pagamentos
+            infAdic = cfe.infAdic
+            obsFisco = " | ".join([f"{o.get('xCampo', '')}: {o.get('xTexto', '')}" for o in cfe.obsFisco]) if cfe.obsFisco else "-"
+
+            forma_pagamento = " | ".join([p.get('cMP', '-') for p in pagamentos]) if pagamentos else "-"
+            valor_pago = " | ".join([p.get('vMP', '-') for p in pagamentos]) if pagamentos else "-"
+            troco = "-"
+            if hasattr(cfe, "pagamentos") and cfe.pagamentos:
+                troco = cfe.totais.get("vTroco", "-") if "vTroco" in cfe.totais else "-"
+            if troco == "-" and cfe.pagamentos:
+                troco = cfe.pagamentos[0].get("vTroco", "-") if "vTroco" in cfe.pagamentos[0] else "-"
 
             for item in cfe.itens:
-                ws.append([
-                    cfe.chave,
-                    data_emissao,
-                    cnpj_emitente,
-                    nome_emitente,
-                    cpf_cnpj_cliente,
-                    nome_cliente,
-                    item.xProd,
-                    item.qCom,
-                    item.vUnCom,
-                    item.vProd,
-                    item.NCM,
-                    item.CFOP
-                ])
+                impostos = item.impostos
 
-    def abaCancelamento(self, wb: Workbook, nome_aba: str, lista_cfe: list):
-        ws = wb.create_sheet(nome_aba)
-        ws.append([
-            "Chave", "Data Emissão", "CNPJ Emitente", "Nome Emitente",
-            "CPF/CNPJ Cliente", "Nome Cliente", 
-            "Valor Total", "AssinaturaQRCODE"
-        ])
-        self.cabecalho(ws)
+                icms_data = self.extrairImposto(impostos, "ICMS")
+                pis_data = self.extrairImposto(impostos, "PIS")
+                cofins_data = self.extrairImposto(impostos, "COFINS")
 
-        for cfe in lista_cfe:
-            data_emissao = cfe.ide.get("dEmi") if cfe.ide else ""
-            cnpj_emitente = cfe.emitente.get("CNPJ") if cfe.emitente else ""
-            nome_emitente = cfe.emitente.get("xNome") if cfe.emitente else ""
-            cpf_cnpj_cliente = cfe.destinatario.get("CPF") or cfe.destinatario.get("CNPJ") if cfe.destinatario else ""
-            nome_cliente = cfe.destinatario.get("xNome") if cfe.destinatario else ""
-            valor_total = cfe.totais.get("vCFe") if cfe.totais else ""
+                linha = [
+                    # CF-e (Cabeçalho)
+                    cfe.chave, cfe.versao, cfe.versaoDadosEnt, cfe.versaoSB,
+                    ide.get("cUF", "-"), ide.get("cNF", "-"), ide.get("mod", "-"),
+                    ide.get("nserieSAT", "-"), ide.get("nCFe", "-"),
+                    ide.get("dEmi", "-"), ide.get("hEmi", "-"), ide.get("cDV", "-"),
+                    ide.get("tpAmb", "-"), ide.get("CNPJ", "-"),
+                    ide.get("signAC", "-"), cfe.assinaturaQRCODE, ide.get("numeroCaixa", "-"),
 
-            ws.append([
-                cfe.chave,
-                data_emissao,
-                cnpj_emitente,
-                nome_emitente,
-                cpf_cnpj_cliente,
-                nome_cliente,
-                valor_total,
-                cfe.assinaturaQRCODE
-            ])
+                    # Emitente
+                    emit.get("CNPJ", "-"), emit.get("xNome", "-"), emit.get("xFant", "-"),
+                    emit.get("enderEmit", {}).get("xLgr", "-"), emit.get("enderEmit", {}).get("nro", "-"),
+                    emit.get("enderEmit", {}).get("xCpl", "-"), emit.get("enderEmit", {}).get("xBairro", "-"),
+                    emit.get("enderEmit", {}).get("xMun", "-"), emit.get("enderEmit", {}).get("CEP", "-"),
+                    emit.get("IE", "-"), emit.get("cRegTrib", "-"), emit.get("indRatISSQN", "-"),
 
-    def abaFalha(self, wb: Workbook, nome_aba: str, lista_arquivos: list):
-        ws = wb.create_sheet(nome_aba)
-        ws.append(["Arquivo", "Motivo"])
-        self.cabecalho(ws)
+                    # Destinatário
+                    dest.get("CPF", dest.get("CNPJ", "-")), dest.get("xNome", "-"),
 
-        for arquivo in lista_arquivos:
-            ws.append([arquivo, "Arquivo inválido ou não é XML de CF-e"])
+                    # Produto
+                    item.cProd, item.xProd, item.cEAN, item.NCM, item.CEST,
+                    item.CFOP, item.uCom, item.qCom, item.vUnCom, item.vProd,
+                    item.vDesc, item.vOutro, item.indRegra,
 
-    def cabecalho(self, ws):
-        for cell in ws[1]:
-            cell.font = Font(bold=True, color="FFFFFF")
-            cell.fill = PatternFill("solid", fgColor="4F81BD")
-            cell.alignment = Alignment(horizontal="center")
+                    # Impostos
+                    item.vItem12741,
+                    icms_data.get("Orig", "-"), icms_data.get("CST", "-"),
+                    icms_data.get("pICMS", "-"), icms_data.get("vICMS", "-"),
+                    pis_data.get("CST", "-"), pis_data.get("vBC", "-"),
+                    pis_data.get("pPIS", "-"), pis_data.get("vPIS", "-"),
+                    cofins_data.get("CST", "-"), cofins_data.get("vBC", "-"),
+                    cofins_data.get("pCOFINS", "-"), cofins_data.get("vCOFINS", "-"),
+
+                    # Totais
+                    totais.get("ICMSTot", {}).get("vICMS", "-"),
+                    totais.get("ICMSTot", {}).get("vProd", "-"),
+                    totais.get("ICMSTot", {}).get("vDesc", "-"),
+                    totais.get("ICMSTot", {}).get("vPIS", "-"),
+                    totais.get("ICMSTot", {}).get("vCOFINS", "-"),
+                    totais.get("vCFe", "-"),
+                    totais.get("vCFeLei12741", "-"),
+
+                    # Pagamento
+                    forma_pagamento, valor_pago, troco,
+
+                    # Informações adicionais
+                    obsFisco,
+                    infAdic.get("infCpl", "-")
+                ]
+                linhas.append(linha)
+
+        df = pd.DataFrame(linhas, columns=headers)
+
+        if not caminho_saida.lower().endswith(".xlsx"):
+            caminho_saida += ".xlsx"
+        os.makedirs(os.path.dirname(caminho_saida), exist_ok=True)
+        df.to_excel(caminho_saida, index=False)
+
+        return caminho_saida
+
+    def extrairImposto(self, impostos: dict, tipo: str) -> dict:
+        if tipo not in impostos:
+            return {}
+        bloco = impostos[tipo]
+        if isinstance(bloco, dict):
+            for chave, dados in bloco.items():
+                if isinstance(dados, dict):
+                    return dados
+        return {}

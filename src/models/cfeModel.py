@@ -1,78 +1,79 @@
-from typing import List, Optional, Dict
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any
 
+@dataclass
 class ItemModel:
-    def __init__(
-        self,
-        nItem: str,
-        cProd: Optional[str],
-        cEAN: Optional[str],
-        xProd: Optional[str],
-        NCM: Optional[str],
-        CFOP: Optional[str],
-        uCom: Optional[str],
-        qCom: Optional[float],
-        vUnCom: Optional[float],
-        vProd: Optional[float],
-        indRegra: Optional[str],
-        cBarra: Optional[str] = None,
-        cBarraTrib: Optional[str] = None,
-        uTrib: Optional[str] = None,
-        qTrib: Optional[float] = None,
-        vUnTrib: Optional[float] = None,
-        vDesc: Optional[float] = None,
-        vOutro: Optional[float] = None,
-        impostos: Optional[Dict[str, Dict]] = None,
-        infAdProd: Optional[str] = None,
-        obsFiscoDet: Optional[List[Dict[str, str]]] = None
-    ):
-        self.nItem = nItem
-        self.cProd = cProd
-        self.cEAN = cEAN
-        self.xProd = xProd
-        self.NCM = NCM
-        self.CFOP = CFOP
-        self.uCom = uCom
-        self.qCom = qCom
-        self.vUnCom = vUnCom
-        self.vProd = vProd
-        self.indRegra = indRegra
-        self.cBarra = cBarra
-        self.cBarraTrib = cBarraTrib
-        self.uTrib = uTrib
-        self.qTrib = qTrib
-        self.vUnTrib = vUnTrib
-        self.vDesc = vDesc
-        self.vOutro = vOutro
-        self.impostos = impostos or {}
-        self.infAdProd = infAdProd                
-        self.obsFiscoDet = obsFiscoDet or []
+    nItem: str
+    cProd: str
+    cEAN: str
+    xProd: str
+    NCM: str
+    CEST: str                # ✅ Adicionado aqui
+    CFOP: str
+    uCom: str
+    qCom: Optional[float]
+    vUnCom: Optional[float]
+    vProd: Optional[float]
+    indRegra: str
+    vItem: Optional[float]           
+    vDesc: Optional[float]            
+    vOutro: Optional[float]           
+    impostos: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    vItem12741: Optional[str] = "-"    
 
+    def toDict(self) -> Dict[str, Any]:
+        return {
+            "nItem": self.nItem,
+            "cProd": self.cProd,
+            "cEAN": self.cEAN,
+            "xProd": self.xProd,
+            "NCM": self.NCM,
+            "CEST": self.CEST,      # ✅ Agora o campo vai para o dicionário
+            "CFOP": self.CFOP,
+            "uCom": self.uCom,
+            "qCom": self.qCom,
+            "vUnCom": self.vUnCom,
+            "vProd": self.vProd,
+            "indRegra": self.indRegra,
+            "vItem": self.vItem,
+            "vDesc": self.vDesc,
+            "vOutro": self.vOutro,
+            "impostos": self.impostos,
+            "vItem12741": self.vItem12741
+        }
 
+@dataclass
 class CFeModel:
-    def __init__(
-        self,
-        chave: str,
-        versaoDadosEnt: Optional[str],
-        ide: Dict[str, Optional[str]],
-        emitente: Dict[str, Optional[str]],
-        destinatario: Dict[str, Optional[str]],
-        entrega: Optional[Dict[str, Optional[str]]] = None,
-        itens: List[ItemModel] = None,
-        totais: Dict[str, Optional[float]] = None,
-        pagamentos: List[Dict[str, Optional[str]]] = None,
-        infAdic: Dict[str, Optional[str]] = None,
-        assinaturaQRCODE: Optional[str] = None,
-        status: str = ""
-    ):
-        self.chave = chave
-        self.versaoDadosEnt = versaoDadosEnt
-        self.ide = ide
-        self.emitente = emitente
-        self.destinatario = destinatario
-        self.entrega = entrega or {}
-        self.itens = itens or []
-        self.totais = totais or {}
-        self.pagamentos = pagamentos or []
-        self.infAdic = infAdic or {}
-        self.assinaturaQRCODE = assinaturaQRCODE
-        self.status = status
+    chave: str
+    versao: str
+    versaoDadosEnt: str
+    versaoSB: str
+
+    ide: Dict[str, Any]
+    emitente: Dict[str, Any]
+    destinatario: Dict[str, Any]
+    itens: List[ItemModel] = field(default_factory=list)
+    totais: Dict[str, Any] = field(default_factory=dict)
+    pagamentos: List[Dict[str, Any]] = field(default_factory=list)
+    infAdic: Dict[str, Any] = field(default_factory=dict)
+    obsFisco: List[Dict[str, str]] = field(default_factory=list)
+    assinaturaQRCODE: str = "-"
+    status: str = "venda_validada"
+
+    def toDict(self) -> Dict[str, Any]:
+        return {
+            "chave": self.chave,
+            "versao": self.versao,
+            "versaoDadosEnt": self.versaoDadosEnt,
+            "versaoSB": self.versaoSB,
+            "ide": self.ide,
+            "emitente": self.emitente,
+            "destinatario": self.destinatario,
+            "itens": [item.toDict() for item in self.itens],
+            "totais": self.totais,
+            "pagamentos": self.pagamentos,
+            "infAdic": self.infAdic,
+            "obsFisco": self.obsFisco,
+            "assinaturaQRCODE": self.assinaturaQRCODE,
+            "status": self.status
+        }

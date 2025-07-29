@@ -16,7 +16,7 @@ def drop_zone_section(on_click):
         content=ft.Column([
             ft.Icon(ft.Icons.FOLDER_OPEN, size=48, color=th["TEXT_SECONDARY"]),
             ft.Text("Clique para selecionar uma pasta", size=16),
-            ft.Text("Arquivos XML de CF-e SAT", size=14, color=th["TEXT_SECONDARY"])
+            ft.Text("Arquivos XML de CF-e", size=14, color=th["TEXT_SECONDARY"])
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
         height=200,
         border=ft.border.all(2, th["BORDER"]),

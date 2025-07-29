@@ -110,7 +110,7 @@ def HomePage(page: ft.Page):
                 render()
                 time.sleep(0.05)
 
-            resultado = controller.processar_pasta(state["folder_path"])
+            resultado = controller.processarPasta(state["folder_path"])
 
             if resultado["status"] == "sucesso":
                 notificacao(page, "Processamento concluído", resultado["mensagem"], tipo="sucesso")
@@ -132,7 +132,7 @@ def HomePage(page: ft.Page):
         if not caminho_planilha.lower().endswith(".xlsx"):
             caminho_planilha += ".xlsx"
 
-        resultado_exportacao = controller.exportar_planilha(caminho_planilha)
+        resultado_exportacao = controller.exportarPlanilha(caminho_planilha)
 
         if resultado_exportacao["status"] == "sucesso":
             notificacao(page, "Planilha salva", resultado_exportacao["mensagem"], tipo="sucesso")
