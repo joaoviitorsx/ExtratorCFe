@@ -10,7 +10,6 @@ from src.config import theme
 from src.components.sections import header_section, drop_zone_section
 from src.components.card import folderCard, processingCard, completedCard
 
-
 class ProcessingState(Enum):
     IDLE = "idle"
     FOLDER_SELECTED = "folder_selected"
@@ -141,14 +140,12 @@ def HomePage(page: ft.Page):
             caminho_planilha += ".xlsx"
 
         resultado_exportacao = controller.exportarPlanilha(caminho_planilha)
-        print(f"Resultado da exportação: {resultado_exportacao}")
 
         def fecharDialog(e=None):
             page.close(dialog)
             page.update()
 
         def abrirPlanilha(e=None):
-            print(f"Abrindo planilha: {caminho_planilha}")
             import subprocess, sys
             page.close(dialog)
             page.update()
@@ -158,8 +155,6 @@ def HomePage(page: ft.Page):
                 subprocess.Popen(["open", caminho_planilha])
 
         if resultado_exportacao["status"] == "sucesso":
-            print("Exportação sucesso, mostrando dialog")
-
             dialog = ft.AlertDialog(
                 modal=True,
                 title=ft.Text("Planilha gerada com sucesso!"),
@@ -170,10 +165,7 @@ def HomePage(page: ft.Page):
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,
             )
-
-            page.dialog = dialog
-            dialog.open = True
-            page.update()
+            page.open(dialog)
         else:
             notificacao(page, "Erro", resultado_exportacao["mensagem"], tipo="erro")
 
