@@ -7,9 +7,9 @@ class ExtratorController:
         self.export_service = ExportService()
         self._resultado_processado = None
 
-    def processarPasta(self, pasta_xml: str) -> dict:
+    def processarPasta(self, pasta_xml: str, progresso_callback=None) -> dict:
         try:
-            self._resultado_processado = self.extrator_service.processarPasta(pasta_xml)
+            self._resultado_processado = self.extrator_service.processarPasta(pasta_xml, progresso_callback=progresso_callback)
 
             total_arquivos = sum(len(lista) for lista in self._resultado_processado.values())
             arquivos_erro = self._resultado_processado.get("fora_padrao", [])

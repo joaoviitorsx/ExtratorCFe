@@ -1,55 +1,48 @@
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from collections import defaultdict
 from src.service.cfeParse import parseCfe
 
 class ExtratorService:
-    def __init__(self):
-        pass
+    def __init__(self, max_workers=8, batch_size=500):
+        self.max_workers = max_workers
+        self.batch_size = batch_size
 
-    def processarPasta(self, pasta_path: str):
-        resultado = {
-            "venda_validada": [],
-            "venda_presat": [],
-            "cancelamento_validado": [],
-            "cancelamento_presat": [],
-            "fora_padrao": []
-        }
+    def _processarArquivos(self, caminho_completo):
+        if not caminho_completo.lower().endswith(".xml"):
+            return ("fora_padrao", os.path.basename(caminho_completo))
 
-        for arquivo in os.listdir(pasta_path):
-            caminho_completo = os.path.join(pasta_path, arquivo)
-
-            if not os.path.isfile(caminho_completo):
-                continue
-
-            if not arquivo.lower().endswith(".xml"):
-                resultado["fora_padrao"].append(arquivo)
-                continue
-
-            cfe = parseCfe(caminho_completo)
-
-            if cfe is None:
-                resultado["fora_padrao"].append(arquivo)
-                continue
-
-            if cfe.status == "venda_validada":
-                resultado["venda_validada"].append(cfe)
-            elif cfe.status == "venda_presat":
-                resultado["venda_presat"].append(cfe)
-            elif cfe.status == "cancelamento_validado":
-                resultado["cancelamento_validado"].append(cfe)
-            elif cfe.status == "cancelamento_presat":
-                resultado["cancelamento_presat"].append(cfe)
-            else:
-                resultado["fora_padrao"].append(arquivo)
-
-        return resultado
-
-    def processarArquivo(self, arquivo_path: str):
-        if not arquivo_path.lower().endswith(".xml"):
-            return {"fora_padrao": [os.path.basename(arquivo_path)]}
-
-        cfe = parseCfe(arquivo_path)
+        cfe = parseCfe(caminho_completo)
 
         if cfe is None:
-            return {"fora_padrao": [os.path.basename(arquivo_path)]}
+            return ("fora_padrao", os.path.basename(caminho_completo))
+        
+        if cfe.status == "fora_padrao":
+            return ("fora_padrao", os.path.basename(caminho_completo))
 
-        return {cfe.status: [cfe]}
+        return (cfe.status, cfe)
+
+    def chunker(self, seq, size):
+        for pos in range(0, len(seq), size):
+            yield seq[pos:pos + size]
+
+    def processarPasta(self, pasta_path: str, progresso_callback=None):
+        resultado = defaultdict(list)
+        arquivos = [
+            entry.path for entry in os.scandir(pasta_path)
+            if entry.is_file()
+        ]
+        total = len(arquivos)
+        processados = 0
+
+        for lote in self.chunker(arquivos, self.batch_size):
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {executor.submit(self._processarArquivos, arquivo): arquivo for arquivo in lote}
+                for future in as_completed(futures):
+                    status, dado = future.result()
+                    resultado[status].append(dado)
+            processados += len(lote)
+            if progresso_callback:
+                progresso_callback(processados, total)
+
+        return dict(resultado)

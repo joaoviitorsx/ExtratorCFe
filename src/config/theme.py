@@ -3,7 +3,7 @@ import flet as ft
 _LIGHT_THEME = {
     "MODE": "light",
     "PRIMARY_COLOR": "#2563EB", 
-    "PRIMARY_HOVER": "#1D4ED8",
+    "PRIMARY_HOVER": "#4162BD",
     "BACKGROUND": "#F9FAFB",
     "CARD": "#F3F4F6",
     "CARD_DARK": "#2d2d2d",
@@ -12,7 +12,8 @@ _LIGHT_THEME = {
     "TEXT": "#1F2937",
     "TEXT_SECONDARY": "#6B7280",
     "ERROR": "#EF4444",
-    "BACKGROUNDSCREEN": "#C2C2C2",
+    "BACKGROUNDSCREEN": "#D6D5D5",
+    "BACK": "#E6E6E6",
     "BLACK": "#000000",
     "INPUT_BG": "#FFFFFF",
 }

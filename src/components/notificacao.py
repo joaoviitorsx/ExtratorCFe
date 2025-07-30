@@ -137,3 +137,68 @@ def notificacao(page: ft.Page, titulo: str, mensagem: str, tipo: str = "info"):
 
     threading.Thread(target=animar_entrada).start()
     threading.Thread(target=animar_saida).start()
+
+def notificacaoProgresso(page: ft.Page):
+    estilo = {
+        "bg": "#3474dc",
+        "text": "white"
+    }
+
+    texto_titulo = ft.Text(
+        "Gerando planilha...",
+        color=estilo["text"],
+        weight="bold",
+        size=15,
+        max_lines=2,
+        overflow=ft.TextOverflow.ELLIPSIS
+    )
+
+    texto_mensagem = ft.Text(
+        "Aguarde enquanto a planilha está sendo gerada.",
+        color=estilo["text"],
+        size=13,
+        max_lines=3,
+        overflow=ft.TextOverflow.ELLIPSIS
+    )
+
+    card = ft.Container(
+        content=ft.Card(
+            elevation=6,
+            content=ft.Container(
+                padding=16,
+                bgcolor=estilo["bg"],
+                border_radius=12,
+                content=ft.Row(
+                    controls=[
+                        ft.ProgressRing(color="white"),
+                        ft.Column([texto_titulo, texto_mensagem], spacing=2, expand=True)
+                    ],
+                    spacing=12,
+                    alignment=ft.MainAxisAlignment.START,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER
+                )
+            )
+        ),
+        width=420,
+        height=100,
+        right=20,
+        bottom=20,
+        opacity=0,
+        animate_opacity=ft.Animation(400, "easeOut"),
+        animate_offset=ft.Animation(400, "easeOut"),
+        animate_position=ft.Animation(400, "easeOut"),
+        offset=ft.Offset(0.5, 0)
+    )
+
+    page.overlay.append(card)
+    page.update()
+
+    def animarEntrada():
+        time.sleep(0.1)
+        card.opacity = 1
+        card.offset = ft.Offset(0, 0)
+        page.update()
+
+    threading.Thread(target=animarEntrada).start()
+
+    return card

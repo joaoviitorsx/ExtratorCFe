@@ -8,6 +8,8 @@ def main(page: ft.Page):
     page.title = "Extrator CF-e"
     page.window.height = 800
     page.window.width = 650
+    page.window.max_height = 800
+    page.window.max_width = 650
 
     def trocaRota(e):
         page.views.clear()
