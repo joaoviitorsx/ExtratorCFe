@@ -1,6 +1,7 @@
 import flet as ft
 from src.config import theme
 from src.interface.home import HomePage
+from src.utils.path import resourcePath
 
 def main(page: ft.Page):
     th = theme.aplicar_theme(page)
@@ -10,6 +11,7 @@ def main(page: ft.Page):
     page.window.width = 650
     page.window.max_height = 800
     page.window.max_width = 650
+    page.window.icon = resourcePath("src/assets/icone.ico")
 
     def trocaRota(e):
         page.views.clear()

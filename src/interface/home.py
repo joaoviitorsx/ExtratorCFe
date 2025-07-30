@@ -17,7 +17,6 @@ class ProcessingState(Enum):
     COMPLETED = "completed"
     ERROR = "error"
 
-
 def HomePage(page: ft.Page):
     th = theme.aplicar_theme(page)
     controller = ExtratorController()
@@ -107,6 +106,7 @@ def HomePage(page: ft.Page):
                     on_new_folder=lambda e: resetar()
                 )
             ]),
+            footer()
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
     def pastaEscolhida(e):

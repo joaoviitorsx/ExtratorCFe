@@ -72,7 +72,7 @@ def processingCard(folder_name: str, processed: int, total: int, on_start=None):
             ], spacing=8),
             ft.Container(
                 content=ft.Text(f"{processed} de {total}", size=12, color=th["TEXT_SECONDARY"]),
-                border=ft.border.all(1, th["PRIMARY_COLOR"]),
+                #border=ft.border.all(1, th["PRIMARY_COLOR"]),
                 border_radius=8,
                 padding=4
             )], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
