@@ -7,7 +7,7 @@ from enum import Enum
 from src.components.notificacao import notificacao
 from src.controller.extratorController import ExtratorController
 from src.config import theme
-from src.components.sections import header_section, drop_zone_section
+from src.components.sections import sectionHeader, sectionDrop
 from src.components.card import folderCard, processingCard, completedCard
 
 class ProcessingState(Enum):
@@ -53,13 +53,13 @@ def HomePage(page: ft.Page):
 
     def viewIdle():
         return ft.Column([
-            header_section(),
-            drop_zone_section(lambda e: pasta_picker.get_directory_path())
+            sectionHeader(),
+            sectionDrop(lambda e: pasta_picker.get_directory_path())
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
 
     def viewFolderSelected():
         return ft.Column([
-            header_section(),
+            sectionHeader(),
             processingCard(
                 state['folder_name'],
                 state['processed_files'],
@@ -70,13 +70,13 @@ def HomePage(page: ft.Page):
 
     def viewProcessing():
         return ft.Column([
-            header_section(),
+            sectionHeader(),
             processingCard(state['folder_name'], state['processed_files'], state['total_files'])
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=20)
 
     def viewCompleted():
         return ft.Column([
-            header_section(),
+            sectionHeader(),
             completedCard(
                 total_files=state['total_files'],
                 validos=state['validos'],

@@ -1,8 +1,7 @@
 import flet as ft
 from src.config import theme
 
-
-def header_section():
+def sectionHeader():
     th = theme.get_theme()
     return ft.Column([
         ft.Text("Extrator CF-e", size=28, weight=ft.FontWeight.W_600, text_align=ft.TextAlign.CENTER),
@@ -10,7 +9,7 @@ def header_section():
     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8)
 
 
-def drop_zone_section(on_click):
+def sectionDrop(on_click):
     th = theme.get_theme()
     return ft.Container(
         content=ft.Column([
