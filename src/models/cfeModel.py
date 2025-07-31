@@ -8,7 +8,7 @@ class ItemModel:
     cEAN: str
     xProd: str
     NCM: str
-    CEST: str                # ✅ Adicionado aqui
+    CEST: str                
     CFOP: str
     uCom: str
     qCom: Optional[float]
@@ -28,7 +28,7 @@ class ItemModel:
             "cEAN": self.cEAN,
             "xProd": self.xProd,
             "NCM": self.NCM,
-            "CEST": self.CEST,      # ✅ Agora o campo vai para o dicionário
+            "CEST": self.CEST,      
             "CFOP": self.CFOP,
             "uCom": self.uCom,
             "qCom": self.qCom,

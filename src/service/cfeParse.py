@@ -17,10 +17,10 @@ def parseCfe(file_path: str) -> Optional[CFeModel]:
     if inf is None:
         return None
 
-    chave = inf.get('Id', '-') or '-'
-    versao = inf.get('versao', '-') or '-'
-    versao_dados_ent = inf.get('versaoDadosEnt', '-') or '-'
-    versao_sb = inf.get('versaoSB', '-') or '-'
+    chave = inf.get('Id', '-')
+    versao = inf.get('versao', '-')
+    versao_dados_ent = inf.get('versaoDadosEnt', '-')
+    versao_sb = inf.get('versaoSB', '-')
 
     ide_dict = {}
     ide = inf.find('ide')
