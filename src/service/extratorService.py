@@ -1,7 +1,7 @@
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections import defaultdict
 from src.service.cfeParse import parseCfe
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class ExtratorService:
     def __init__(self, max_workers=8, batch_size=500):
@@ -13,11 +13,7 @@ class ExtratorService:
             return ("fora_padrao", os.path.basename(caminho_completo))
 
         cfe = parseCfe(caminho_completo)
-
-        if cfe is None:
-            return ("fora_padrao", os.path.basename(caminho_completo))
-        
-        if cfe.status == "fora_padrao":
+        if cfe is None or getattr(cfe, "status", None) == "fora_padrao":
             return ("fora_padrao", os.path.basename(caminho_completo))
 
         return (cfe.status, cfe)
