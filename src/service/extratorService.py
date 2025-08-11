@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from multiprocessing import cpu_count
 
 class ExtratorService:
-    def __init__(self, max_workers=None, batch_size=650):
+    def __init__(self, max_workers=None, batch_size=250):
         self.max_workers = max_workers or min(cpu_count() * 2, 20)
         self.batch_size = batch_size
 

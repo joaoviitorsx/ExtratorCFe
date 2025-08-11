@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict, Any
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class ItemModel:
     nItem: str
     cProd: str
@@ -25,7 +25,7 @@ class ItemModel:
         if self.impostos is None:
             self.impostos = {}
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class CFeModel:
     chave: str
     versao: str = "-"
