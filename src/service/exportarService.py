@@ -1,62 +1,152 @@
 import os
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill
+import time
+import xlsxwriter
 from src.models.cfeModel import CFeModel
 
 class ExportService:
     def __init__(self):
-        self.header_style = self.estiloCabecalho()
+        self._headers_cache = None
+        
+    @property
+    def _headers(self):
+        if self._headers_cache is None:
+            self._headers_cache = self._montarHeaders()
+        return self._headers_cache
 
     def gerarPlanilha(self, cfes_dict: dict, caminho_saida: str) -> str:
-        wb = Workbook()
-        wb.remove(wb.active)
-
-        self.abaVendas(wb, cfes_dict)
-        self.abaCancelados(wb, cfes_dict)
-        self.abaForaPadrao(wb, cfes_dict)
-
         if not caminho_saida.lower().endswith(".xlsx"):
             caminho_saida += ".xlsx"
 
         os.makedirs(os.path.dirname(caminho_saida), exist_ok=True)
-        wb.save(caminho_saida)
+        wb = xlsxwriter.Workbook(caminho_saida, {'constant_memory': True})
+
+        vendas_data = self._prepararDadosVendas(cfes_dict)
+        cancelados_data = self._prepararDadosCancelados(cfes_dict)
+        fora_padrao_data = self._prepararDadosForaPadrao(cfes_dict)
+
+        if vendas_data:
+            self._escreverAba(wb, "Vendas", vendas_data)
+        if cancelados_data:
+            self._escreverAba(wb, "Cancelados", cancelados_data)
+        if fora_padrao_data:
+            self._escreverAbaForaPadrao(wb, fora_padrao_data)
+
+        wb.close()
         return caminho_saida
 
-    def abaVendas(self, wb, cfes_dict):
+    def _prepararDadosVendas(self, cfes_dict):
         vendas = cfes_dict.get("venda_validada", []) + cfes_dict.get("venda_presat", [])
-        if vendas:
-            self.abaCompleta(wb, "Vendas", vendas)
+        return self._processarCfes(vendas) if vendas else None
 
-    def abaCancelados(self, wb, cfes_dict):
+    def _prepararDadosCancelados(self, cfes_dict):
         cancelados = cfes_dict.get("cancelamento_validado", []) + cfes_dict.get("cancelamento_presat", [])
-        if cancelados:
-            self.abaCompleta(wb, "Cancelados", cancelados)
+        return self._processarCfes(cancelados) if cancelados else None
 
-    def abaForaPadrao(self, wb, cfes_dict):
+    def _prepararDadosForaPadrao(self, cfes_dict):
         fora_padrao = cfes_dict.get("fora_padrao", [])
-        if fora_padrao:
-            ws = wb.create_sheet("Fora do Padrão")
-            headers = ["Arquivo", "Motivo"]
-            ws.append(headers)
-            self.formatarCabecalho(ws, headers)
-            for arquivo in fora_padrao:
-                ws.append([arquivo, "Arquivo inválido ou não é um XML de CF-e"])
+        return [[arquivo, "Arquivo inválido ou não é um XML de CF-e"] for arquivo in fora_padrao] if fora_padrao else None
 
-
-    def abaCompleta(self, wb: Workbook, nome_aba: str, lista_cfe: list):
-        ws = wb.create_sheet(nome_aba)
-        headers = self.montarHeaders()
-        ws.append(headers)
-        self.formatarCabecalho(ws, headers)
-
-        linhas = []
+    def _processarCfes(self, lista_cfe):
+        todas_linhas = []
+        
         for cfe in lista_cfe:
-            linhas.extend(self.linhasCfe(cfe))
-        for linha in linhas:
-            ws.append(linha)
+            dados_base = self._extrairDadosBase(cfe)
+            for item in cfe.itens:
+                linha = self._criarLinhaItem(dados_base, item)
+                todas_linhas.append(linha)
 
-    def montarHeaders(self):
-        return [
+        return todas_linhas
+
+    def _extrairDadosBase(self, cfe: CFeModel):
+        ide = cfe.ide or {}
+        emit = cfe.emitente or {}
+        dest = cfe.destinatario or {}
+        totais = cfe.totais or {}
+        pagamentos = cfe.pagamentos or []
+        infAdic = cfe.infAdic or {}
+
+        obsFisco = "-"
+        if cfe.obsFisco:
+            obsFisco = " | ".join(f"{o.get('xCampo', '')}: {o.get('xTexto', '')}" for o in cfe.obsFisco)
+
+        forma_pagamento = "-"
+        valor_pago = "-"
+        if pagamentos:
+            forma_pagamento = " | ".join(p.get('cMP', '-') for p in pagamentos)
+            valor_pago = " | ".join(p.get('vMP', '-') for p in pagamentos)
+
+        troco = totais.get("vTroco", "-")
+
+        return (
+            (cfe.chave, cfe.versao, cfe.versaoDadosEnt, cfe.versaoSB,
+             ide.get("cUF", "-"), ide.get("cNF", "-"), ide.get("mod", "-"),
+             ide.get("nserieSAT", "-"), ide.get("nCFe", "-"),
+             ide.get("dEmi", "-"), ide.get("hEmi", "-"), ide.get("cDV", "-"),
+             ide.get("tpAmb", "-"), ide.get("CNPJ", "-"),
+             ide.get("signAC", "-"), cfe.assinaturaQRCODE, ide.get("numeroCaixa", "-")),
+            (emit.get("CNPJ", "-"), emit.get("xNome", "-"), emit.get("xFant", "-"),
+             emit.get("enderEmit", {}).get("xLgr", "-"), emit.get("enderEmit", {}).get("nro", "-"),
+             emit.get("enderEmit", {}).get("xCpl", "-"), emit.get("enderEmit", {}).get("xBairro", "-"),
+             emit.get("enderEmit", {}).get("xMun", "-"), emit.get("enderEmit", {}).get("CEP", "-"),
+             emit.get("IE", "-"), emit.get("cRegTrib", "-"), emit.get("indRatISSQN", "-")),
+            (dest.get("CPF", dest.get("CNPJ", "-")), dest.get("xNome", "-")),
+            (totais.get("ICMSTot", {}).get("vICMS", "-"),
+             totais.get("ICMSTot", {}).get("vProd", "-"),
+             totais.get("ICMSTot", {}).get("vDesc", "-"),
+             totais.get("ICMSTot", {}).get("vPIS", "-"),
+             totais.get("ICMSTot", {}).get("vCOFINS", "-"),
+             totais.get("vCFe", "-"), totais.get("vCFeLei12741", "-")),
+            (forma_pagamento, valor_pago, troco),
+            (obsFisco, infAdic.get("infCpl", "-"))
+        )
+
+    def _criarLinhaItem(self, dados_base, item):
+        impostos = item.impostos or {}
+        icms = self._extrairImposto(impostos, "ICMS")
+        pis = self._extrairImposto(impostos, "PIS")
+        cofins = self._extrairImposto(impostos, "COFINS")
+
+        item_dados = (
+            item.cProd, item.xProd, item.cEAN, item.NCM, item.CEST,
+            item.CFOP, item.uCom, item.qCom, item.vUnCom, item.vProd,
+            item.vDesc, item.vOutro, item.indRegra, item.vItem12741
+        )
+
+        imposto_dados = (
+            icms.get("Orig", "-"), icms.get("CST", "-"), icms.get("pICMS", "-"), icms.get("vICMS", "-"),
+            pis.get("CST", "-"), pis.get("vBC", "-"), pis.get("pPIS", "-"), pis.get("vPIS", "-"),
+            cofins.get("CST", "-"), cofins.get("vBC", "-"), cofins.get("pCOFINS", "-"), cofins.get("vCOFINS", "-")
+        )
+
+        return dados_base[0] + dados_base[1] + dados_base[2] + item_dados + imposto_dados + dados_base[3] + dados_base[4] + dados_base[5]
+
+    def _extrairImposto(self, impostos: dict, tipo: str) -> dict:
+        if not impostos or tipo not in impostos:
+            return {}
+
+        bloco = impostos[tipo]
+        if isinstance(bloco, dict):
+            return next((dados for dados in bloco.values() if isinstance(dados, dict)), {})
+        
+        return {}
+
+    def _escreverAba(self, wb, nome_aba: str, dados_linhas: list):
+        ws = wb.add_worksheet(nome_aba)
+        ws.write_row(0, 0, self._headers)
+
+        for row, linha in enumerate(dados_linhas, start=1):
+            ws.write_row(row, 0, linha)
+
+    def _escreverAbaForaPadrao(self, wb, dados_linhas: list):
+        ws = wb.add_worksheet("Fora do Padrão")
+        headers = ["Arquivo", "Motivo"]
+        ws.write_row(0, 0, headers)
+
+        for row, linha in enumerate(dados_linhas, start=1):
+            ws.write_row(row, 0, linha)
+
+    def _montarHeaders(self):
+        return (
             "Chave", "Versão CF-e", "Versão Dados Ent", "Versão SAT",
             "Código UF", "Código Numérico", "Modelo", "Nº Série SAT", "Nº CF-e",
             "Data Emissão", "Hora Emissão", "Dígito Verificador", "Tipo Ambiente",
@@ -75,82 +165,10 @@ class ExportService:
             "Total CF-e", "Total Tributos Lei 12741",
             "Forma Pagamento", "Valor Pago", "Troco",
             "Observações do Fisco", "Informações Complementares"
-        ]
+        )
 
-    def linhasCfe(self, cfe: CFeModel):
-        ide, emit, dest = cfe.ide, cfe.emitente, cfe.destinatario
-        totais, pagamentos = cfe.totais, cfe.pagamentos
-        infAdic = cfe.infAdic
-        obsFisco = " | ".join([f"{o.get('xCampo', '')}: {o.get('xTexto', '')}" for o in cfe.obsFisco]) if cfe.obsFisco else "-"
-
-        forma_pagamento = " | ".join([p.get('cMP', '-') for p in pagamentos]) if pagamentos else "-"
-        valor_pago = " | ".join([p.get('vMP', '-') for p in pagamentos]) if pagamentos else "-"
-        troco = totais.get("vTroco", "-") if "vTroco" in totais else "-"
-
-        linhas = []
-        for item in cfe.itens:
-            icms = self.extrairImposto(item.impostos, "ICMS")
-            pis = self.extrairImposto(item.impostos, "PIS")
-            cofins = self.extrairImposto(item.impostos, "COFINS")
-
-            linha = [
-                cfe.chave, cfe.versao, cfe.versaoDadosEnt, cfe.versaoSB,
-                ide.get("cUF", "-"), ide.get("cNF", "-"), ide.get("mod", "-"),
-                ide.get("nserieSAT", "-"), ide.get("nCFe", "-"),
-                ide.get("dEmi", "-"), ide.get("hEmi", "-"), ide.get("cDV", "-"),
-                ide.get("tpAmb", "-"), ide.get("CNPJ", "-"),
-                ide.get("signAC", "-"), cfe.assinaturaQRCODE, ide.get("numeroCaixa", "-"),
-
-                emit.get("CNPJ", "-"), emit.get("xNome", "-"), emit.get("xFant", "-"),
-                emit.get("enderEmit", {}).get("xLgr", "-"), emit.get("enderEmit", {}).get("nro", "-"),
-                emit.get("enderEmit", {}).get("xCpl", "-"), emit.get("enderEmit", {}).get("xBairro", "-"),
-                emit.get("enderEmit", {}).get("xMun", "-"), emit.get("enderEmit", {}).get("CEP", "-"),
-                emit.get("IE", "-"), emit.get("cRegTrib", "-"), emit.get("indRatISSQN", "-"),
-
-                dest.get("CPF", dest.get("CNPJ", "-")), dest.get("xNome", "-"),
-
-                item.cProd, item.xProd, item.cEAN, item.NCM, item.CEST,
-                item.CFOP, item.uCom, item.qCom, item.vUnCom, item.vProd,
-                item.vDesc, item.vOutro, item.indRegra,
-
-                item.vItem12741,
-                icms.get("Orig", "-"), icms.get("CST", "-"), icms.get("pICMS", "-"), icms.get("vICMS", "-"),
-                pis.get("CST", "-"), pis.get("vBC", "-"), pis.get("pPIS", "-"), pis.get("vPIS", "-"),
-                cofins.get("CST", "-"), cofins.get("vBC", "-"), cofins.get("pCOFINS", "-"), cofins.get("vCOFINS", "-"),
-
-                totais.get("ICMSTot", {}).get("vICMS", "-"),
-                totais.get("ICMSTot", {}).get("vProd", "-"),
-                totais.get("ICMSTot", {}).get("vDesc", "-"),
-                totais.get("ICMSTot", {}).get("vPIS", "-"),
-                totais.get("ICMSTot", {}).get("vCOFINS", "-"),
-                totais.get("vCFe", "-"), totais.get("vCFeLei12741", "-"),
-
-                forma_pagamento, valor_pago, troco,
-                obsFisco, infAdic.get("infCpl", "-")
-            ]
-            linhas.append(linha)
-        return linhas
-
-    def estiloCabecalho(self):
-        return {"font": Font(bold=True, color="FFFFFF"),
-                "fill": PatternFill("solid", fgColor="4F81BD"),
-                "align": Alignment(horizontal="center")}
-
-    def formatarCabecalho(self, ws, headers):
-        for cell in ws[1]:
-            cell.font = self.header_style["font"]
-            cell.fill = self.header_style["fill"]
-            cell.alignment = self.header_style["align"]
-        for i, header in enumerate(headers, 1):
-            col_letter = ws.cell(row=1, column=i).column_letter
-            ws.column_dimensions[col_letter].width = max(len(header) + 2, 12)
+    def montarHeaders(self):
+        return list(self._headers)
 
     def extrairImposto(self, impostos: dict, tipo: str) -> dict:
-        if tipo not in impostos:
-            return {}
-        bloco = impostos[tipo]
-        if isinstance(bloco, dict):
-            for chave, dados in bloco.items():
-                if isinstance(dados, dict):
-                    return dados
-        return {}
+        return self._extrairImposto(impostos, tipo)

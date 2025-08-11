@@ -1,79 +1,105 @@
-from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Any
+from dataclasses import dataclass
+from typing import List, Dict, Any
 
-@dataclass
+@dataclass(slots=True)
 class ItemModel:
     nItem: str
     cProd: str
-    cEAN: str
-    xProd: str
-    NCM: str
-    CEST: str                
-    CFOP: str
-    uCom: str
-    qCom: Optional[float]
-    vUnCom: Optional[float]
-    vProd: Optional[float]
-    indRegra: str
-    vItem: Optional[float]           
-    vDesc: Optional[float]            
-    vOutro: Optional[float]           
-    impostos: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    vItem12741: Optional[str] = "-"    
+    cEAN: str = "-"
+    xProd: str = "-"
+    NCM: str = "-"
+    CEST: str = "-"
+    CFOP: str = "-"
+    uCom: str = "-"
+    indRegra: str = "-"
+    qCom: str = "-"
+    vUnCom: str = "-"
+    vProd: str = "-"
+    vItem: str = "-"
+    vDesc: str = "-"
+    vOutro: str = "-"
+    vItem12741: str = "-"
+    impostos: Dict[str, Any] = None
+    
+    def _postInitItemModel(self):
+        if self.impostos is None:
+            self.impostos = {}
 
-    def toDict(self) -> Dict[str, Any]:
-        return {
-            "nItem": self.nItem,
-            "cProd": self.cProd,
-            "cEAN": self.cEAN,
-            "xProd": self.xProd,
-            "NCM": self.NCM,
-            "CEST": self.CEST,      
-            "CFOP": self.CFOP,
-            "uCom": self.uCom,
-            "qCom": self.qCom,
-            "vUnCom": self.vUnCom,
-            "vProd": self.vProd,
-            "indRegra": self.indRegra,
-            "vItem": self.vItem,
-            "vDesc": self.vDesc,
-            "vOutro": self.vOutro,
-            "impostos": self.impostos,
-            "vItem12741": self.vItem12741
-        }
-
-@dataclass
+@dataclass(slots=True)
 class CFeModel:
     chave: str
-    versao: str
-    versaoDadosEnt: str
-    versaoSB: str
-
-    ide: Dict[str, Any]
-    emitente: Dict[str, Any]
-    destinatario: Dict[str, Any]
-    itens: List[ItemModel] = field(default_factory=list)
-    totais: Dict[str, Any] = field(default_factory=dict)
-    pagamentos: List[Dict[str, Any]] = field(default_factory=list)
-    infAdic: Dict[str, Any] = field(default_factory=dict)
-    obsFisco: List[Dict[str, str]] = field(default_factory=list)
+    versao: str = "-"
+    versaoDadosEnt: str = "-"
+    versaoSB: str = "-"
     assinaturaQRCODE: str = "-"
     status: str = "venda_validada"
-
-    def toDict(self) -> Dict[str, Any]:
+    ide: Dict[str, Any] = None
+    emitente: Dict[str, Any] = None
+    destinatario: Dict[str, Any] = None
+    totais: Dict[str, Any] = None
+    infAdic: Dict[str, Any] = None
+    itens: List[ItemModel] = None
+    pagamentos: List[Dict[str, Any]] = None
+    obsFisco: List[Dict[str, str]] = None
+    
+    def _postInitCfeModel(self):
+        if self.ide is None:
+            self.ide = {}
+        if self.emitente is None:
+            self.emitente = {}
+        if self.destinatario is None:
+            self.destinatario = {}
+        if self.totais is None:
+            self.totais = {}
+        if self.infAdic is None:
+            self.infAdic = {}
+        if self.itens is None:
+            self.itens = []
+        if self.pagamentos is None:
+            self.pagamentos = []
+        if self.obsFisco is None:
+            self.obsFisco = []
+    
+    def getTotalItens(self) -> int:
+        return len(self.itens)
+    
+    def getValorTotal(self) -> str:
+        return self.totais.get("vCFe", "-")
+    
+    def getCnpjEmitente(self) -> str:
+        return self.emitente.get("CNPJ", "-")
+    
+    def getNomeEmitente(self) -> str:
+        return self.emitente.get("xNome", "-")
+    
+    def getCpfCnpjDestinario(self) -> str:
+        return self.destinatario.get("CPF", self.destinatario.get("CNPJ", "-"))
+    
+    def getDataEmissao(self) -> str:
+        return self.ide.get("dEmi", "-")
+    
+    def getHoraEmissao(self) -> str:
+        return self.ide.get("hEmi", "-")
+    
+    def isCancelamento(self) -> bool:
+        return "cancelamento" in self.status.lower()
+    
+    def isVenda(self) -> bool:
+        return "venda" in self.status.lower()
+    
+    def getNumeroCfe(self) -> str:
+        return self.ide.get("nCFe", "-")
+    
+    def getSerieSat(self) -> str:
+        return self.ide.get("nserieSAT", "-")
+    
+    def toBasicDict(self) -> Dict[str, Any]:
         return {
             "chave": self.chave,
-            "versao": self.versao,
-            "versaoDadosEnt": self.versaoDadosEnt,
-            "versaoSB": self.versaoSB,
-            "ide": self.ide,
-            "emitente": self.emitente,
-            "destinatario": self.destinatario,
-            "itens": [item.toDict() for item in self.itens],
-            "totais": self.totais,
-            "pagamentos": self.pagamentos,
-            "infAdic": self.infAdic,
-            "obsFisco": self.obsFisco,
-            "assinaturaQRCODE": self.assinaturaQRCODE,
-            "status": self.status
+            "status": self.status,
+            "total_itens": len(self.itens),
+            "valor_total": self.getValorTotal(),
+            "emitente": self.getNomeEmitente(),
+            "data_emissao": self.getDataEmissao(),
+            "numero_cfe": self.getNumeroCfe()
         }

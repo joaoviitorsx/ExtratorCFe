@@ -92,7 +92,7 @@ def processingCard(folder_name: str, processed: int, total: int, on_start=None):
                 border_radius=3,
                 bgcolor=th["CARD"],
                 color=th["PRIMARY_COLOR"],
-                width=520
+                width=480
             ),
         ], alignment=ft.MainAxisAlignment.CENTER),
         ft.Row([

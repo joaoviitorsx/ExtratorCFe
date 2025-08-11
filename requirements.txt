@@ -2,3 +2,4 @@ flet
 openpyxl
 pandas
 lxml
+xlsxwriter
