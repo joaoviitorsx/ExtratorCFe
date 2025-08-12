@@ -1,6 +1,7 @@
 import os
 import time
 import xlsxwriter
+import numpy as np
 from src.models.cfeModel import CFeModel
 
 class ExportXlsxService:
@@ -134,9 +135,12 @@ class ExportXlsxService:
         ws = wb.add_worksheet(nome_aba)
         ws.write_row(0, 0, self._headers)
 
-        for row, linha in enumerate(dados_linhas, start=1):
-            ws.write_row(row, 0, linha)
-
+        chunk_size = 5000
+        for i in range(0, len(dados_linhas), chunk_size):
+            end_idx = min(i + chunk_size, len(dados_linhas))
+            for row_idx in range(i, end_idx):
+                ws.write_row(row_idx + 1, 0, dados_linhas[row_idx])
+            
     def _escreverAbaForaPadrao(self, wb, dados_linhas: list):
         ws = wb.add_worksheet("Fora do Padrão")
         headers = ["Arquivo", "Motivo"]
