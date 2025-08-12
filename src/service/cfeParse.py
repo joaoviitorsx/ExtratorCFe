@@ -1,18 +1,47 @@
+from __future__ import annotations
+
 from lxml import etree
-from typing import Optional, Dict, Any, List
-from src.utils.converter import converte
+from typing import Optional, Dict, Any, List, Tuple
+import threading
+
+from src.utils.converter import converte as _conv
 from src.models.cfeModel import CFeModel, ItemModel
+
+# Reutilização de parser por thread (reduz custo de criação e objetos temporários)
+_thread_locals = threading.local()
+
+def _get_parser() -> etree.XMLParser:
+    p = getattr(_thread_locals, "parser", None)
+    if p is None:
+        _thread_locals.parser = etree.XMLParser(
+            resolve_entities=False,   # evita expansão de entidades
+            remove_blank_text=True,   # menos nós/whitespace
+            recover=True,             # tenta continuar em XMLs imperfeitos
+            huge_tree=True,           # evita checks caros em nós grandes
+        )
+        p = _thread_locals.parser
+    return p
+
+def _parse_bytes(file_path: str) -> Optional[etree._Element]:
+    """Lê o arquivo em bytes e parseia com parser reutilizável da thread."""
+    try:
+        with open(file_path, "rb") as f:
+            data = f.read()
+        # fromstring é mais leve que etree.parse(file) + getroot()
+        return etree.fromstring(data, parser=_get_parser())
+    except Exception:
+        return None
+
 
 class CFeParser:
     @staticmethod
     def parse(file_path: str) -> Optional[CFeModel]:
-        try:
-            tree = etree.parse(file_path)
-            root = tree.getroot()
-        except Exception:
+        root = _parse_bytes(file_path)
+        if root is None:
             return None
 
         is_cancel = root.tag.lower().endswith('cfecanc')
+        # busca direta reduz sobrecarga
         inf = root.find('.//infCFe')
         if inf is None:
             return None
@@ -49,6 +78,7 @@ class CFeParser:
 
     @staticmethod
     def _extrair_chave_info(inf_element) -> Dict[str, str]:
+        # acessos diretos são mais baratos que dicionários intermediários
         return {
             'chave': inf_element.get('Id', '-'),
             'versao': inf_element.get('versao', '-'),
@@ -61,25 +91,24 @@ class CFeParser:
         ide = inf_element.find('ide')
         if ide is None:
             return {}
-
-        ide_dict = {elem.tag: elem.text or "-" for elem in ide.iterchildren()}
-        CFeParser._formatar_data(ide_dict, "dEmi")
-        CFeParser._formatar_hora(ide_dict, "hEmi")
-        return ide_dict
+        d: Dict[str, str] = {}
+        for e in list(ide):
+            d[e.tag] = e.text or "-"
+        CFeParser._formatar_data(d, "dEmi")
+        CFeParser._formatar_hora(d, "hEmi")
+        return d
 
     @staticmethod
     def _formatar_data(data_dict: Dict[str, str], campo: str) -> None:
-        if campo in data_dict and data_dict[campo] not in ("-", None):
-            data = data_dict[campo]
-            if len(data) == 8:
-                data_dict[campo] = f"{data[0:4]}-{data[4:6]}-{data[6:8]}"
+        v = data_dict.get(campo)
+        if v and v != "-" and len(v) == 8:
+            data_dict[campo] = f"{v[0:4]}-{v[4:6]}-{v[6:8]}"
 
     @staticmethod
     def _formatar_hora(data_dict: Dict[str, str], campo: str) -> None:
-        if campo in data_dict and data_dict[campo] not in ("-", None):
-            hora = data_dict[campo]
-            if len(hora) == 6:
-                data_dict[campo] = f"{hora[0:2]}:{hora[2:4]}:{hora[4:6]}"
+        v = data_dict.get(campo)
+        if v and v != "-" and len(v) == 6:
+            data_dict[campo] = f"{v[0:2]}:{v[2:4]}:{v[4:6]}"
 
     @staticmethod
     def _extrair_emitente(inf_element) -> Dict[str, Any]:
@@ -87,8 +116,8 @@ class CFeParser:
         if emit is None:
             return CFeParser._get_emitente_padrao()
 
-        emit_dict = {}
-        for elem in emit.iterchildren():
+        emit_dict: Dict[str, Any] = {}
+        for elem in list(emit):
             if elem.tag != "enderEmit":
                 emit_dict[elem.tag] = elem.text or "-"
             else:
@@ -97,17 +126,20 @@ class CFeParser:
 
     @staticmethod
     def _extrair_endereco(endereco_element) -> Dict[str, str]:
-        return {elem.tag: elem.text or "-" for elem in endereco_element.iterchildren()}
+        out: Dict[str, str] = {}
+        for e in list(endereco_element):
+            out[e.tag] = e.text or "-"
+        return out
 
     @staticmethod
     def _get_emitente_padrao() -> Dict[str, Any]:
         return {
-            "CNPJ": "-", 
-            "xNome": "-", 
-            "xFant": "-", 
-            "IE": "-", 
-            "cRegTrib": "-", 
-            "indRatISSQN": "-", 
+            "CNPJ": "-",
+            "xNome": "-",
+            "xFant": "-",
+            "IE": "-",
+            "cRegTrib": "-",
+            "indRatISSQN": "-",
             "enderEmit": {}
         }
 
@@ -116,18 +148,29 @@ class CFeParser:
         dest = inf_element.find('dest')
         if dest is None:
             return {"CNPJ": "-", "CPF": "-", "xNome": "-"}
-        return {elem.tag: elem.text or "-" for elem in dest.iterchildren()}
+        out: Dict[str, str] = {}
+        for e in list(dest):
+            out[e.tag] = e.text or "-"
+        return out
 
     @staticmethod
     def _extrair_entrega(inf_element) -> Dict[str, str]:
         entrega = inf_element.find('entrega')
         if entrega is None:
             return {"xLgr": "-", "nro": "-", "xCpl": "-", "xBairro": "-", "xMun": "-", "UF": "-"}
-        return {elem.tag: elem.text or "-" for elem in entrega.iterchildren()}
+        out: Dict[str, str] = {}
+        for e in list(entrega):
+            out[e.tag] = e.text or "-"
+        return out
 
     @staticmethod
     def _extrair_itens(inf_element) -> List[ItemModel]:
-        return [CFeParser._processar_item(det) for det in inf_element.findall('det') if CFeParser._processar_item(det)]
+        itens: List[ItemModel] = []
+        for det in inf_element.findall('det'):
+            item = CFeParser._processar_item(det)
+            if item:
+                itens.append(item)
+        return itens
 
     @staticmethod
     def _processar_item(det_element) -> Optional[ItemModel]:
@@ -135,27 +178,28 @@ class CFeParser:
         if prod is None:
             return None
 
+        ftxt = prod.findtext  # local binding diminui overhead de lookups
         item_data = {
-            "nItem": det_element.get('nItem', '-') or "-",
-            "cProd": prod.findtext('cProd', "-"),
-            "cEAN": prod.findtext('cEAN', "-"),
-            "xProd": prod.findtext('xProd', "-"),
-            "NCM": prod.findtext('NCM', "-"),
-            "CEST": prod.findtext('CEST', "-"),
-            "CFOP": prod.findtext('CFOP', "-"),
-            "uCom": prod.findtext('uCom', "-"),
-            "qCom": converte(prod.findtext('qCom')),
-            "vUnCom": converte(prod.findtext('vUnCom')),
-            "vProd": converte(prod.findtext('vProd')),
-            "indRegra": prod.findtext('indRegra', "-"),
-            "vItem": converte(prod.findtext('vItem')),
-            "vDesc": converte(prod.findtext('vDesc')),
-            "vOutro": converte(prod.findtext('vOutro')),
-            "cBarra": prod.findtext('cBarra', "-"),
-            "cBarraTrib": prod.findtext('cBarraTrib', "-"),
-            "uTrib": prod.findtext('uTrib', "-"),
-            "qTrib": converte(prod.findtext('qTrib')),
-            "vUnTrib": converte(prod.findtext('vUnTrib'))
+            "nItem": det_element.get('nItem') or "-",
+            "cProd": ftxt('cProd', "-"),
+            "cEAN": ftxt('cEAN', "-"),
+            "xProd": ftxt('xProd', "-"),
+            "NCM":  ftxt('NCM', "-"),
+            "CEST": ftxt('CEST', "-"),
+            "CFOP": ftxt('CFOP', "-"),
+            "uCom": ftxt('uCom', "-"),
+            "qCom": _conv(ftxt('qCom')),
+            "vUnCom": _conv(ftxt('vUnCom')),
+            "vProd": _conv(ftxt('vProd')),
+            "indRegra": ftxt('indRegra', "-"),
+            "vItem": _conv(ftxt('vItem')),
+            "vDesc": _conv(ftxt('vDesc')),
+            "vOutro": _conv(ftxt('vOutro')),
+            "cBarra": ftxt('cBarra', "-"),
+            "cBarraTrib": ftxt('cBarraTrib', "-"),
+            "uTrib": ftxt('uTrib', "-"),
+            "qTrib": _conv(ftxt('qTrib')),
+            "vUnTrib": _conv(ftxt('vUnTrib')),
         }
 
         impostos = CFeParser._extrair_impostos(det_element)
@@ -168,7 +212,7 @@ class CFeParser:
             xProd=item_data["xProd"],
             NCM=item_data["NCM"],
             CFOP=item_data["CFOP"],
-            CEST=item_data["CEST"],
+            CEST=item_data.get("CEST", "-"),
             uCom=item_data["uCom"],
             qCom=item_data["qCom"],
             vUnCom=item_data["vUnCom"],
@@ -183,12 +227,16 @@ class CFeParser:
 
     @staticmethod
     def _extrair_impostos(det_element) -> Dict[str, Dict[str, str]]:
-        impostos = {}
         imp = det_element.find('imposto')
-        if imp is not None:
-            for imp_tag in imp.iterchildren():
-                impostos[imp_tag.tag] = {child.tag: child.text or "-" for child in imp_tag.iterchildren()}
-        return impostos
+        if imp is None:
+            return {}
+        out: Dict[str, Dict[str, str]] = {}
+        for bloco in list(imp):  # ICMS, PIS, COFINS, etc
+            inner: Dict[str, str] = {}
+            for child in list(bloco):
+                inner[child.tag] = child.text or "-"
+            out[bloco.tag] = inner
+        return out
 
     @staticmethod
     def _extrair_trib_item(det_element) -> str:
@@ -200,12 +248,15 @@ class CFeParser:
         total = inf_element.find('total')
         if total is None:
             return {"vCFe": "-", "vCFeLei12741": "-"}
-        totais = {}
-        for elem in total.iterchildren():
+        totais: Dict[str, Any] = {}
+        for elem in list(total):
             if len(elem) == 0:
-                totais[elem.tag] = converte(elem.text)
+                totais[elem.tag] = _conv(elem.text)
             else:
-                totais[elem.tag] = {child.tag: converte(child.text) for child in elem.iterchildren()}
+                inner = {}
+                for child in list(elem):
+                    inner[child.tag] = _conv(child.text)
+                totais[elem.tag] = inner
         return totais
 
     @staticmethod
@@ -213,11 +264,13 @@ class CFeParser:
         pgto = inf_element.find('pgto')
         if pgto is None:
             return [], "-"
-        pagamentos = [{
-            'cMP': mp.findtext('cMP', "-"),
-            'vMP': mp.findtext('vMP', "-"),
-            'cAdmC': mp.findtext('cAdmC', "-")
-        } for mp in pgto.findall('MP')]
+        pagamentos = []
+        for mp in pgto.findall('MP'):
+            pagamentos.append({
+                'cMP': mp.findtext('cMP', "-"),
+                'vMP': mp.findtext('vMP', "-"),
+                'cAdmC': mp.findtext('cAdmC', "-")
+            })
         troco = pgto.findtext('vTroco', "-")
         return pagamentos, troco
 
@@ -226,14 +279,20 @@ class CFeParser:
         inf_adic = inf_element.find('infAdic')
         if inf_adic is None:
             return {"infCpl": "-"}
-        return {elem.tag: elem.text or "-" for elem in inf_adic.iterchildren()}
+        out: Dict[str, str] = {}
+        for e in list(inf_adic):
+            out[e.tag] = e.text or "-"
+        return out
 
     @staticmethod
     def _extrair_obs_fisco(inf_element) -> List[Dict[str, str]]:
-        return [{
-            "xCampo": obs.get("xCampo", "-"),
-            "xTexto": obs.findtext("xTexto", "-")
-        } for obs in inf_element.findall('obsFisco')]
+        out: List[Dict[str, str]] = []
+        for obs in inf_element.findall('obsFisco'):
+            out.append({
+                "xCampo": obs.get("xCampo", "-"),
+                "xTexto": obs.findtext("xTexto", "-")
+            })
+        return out
 
     @staticmethod
     def _determinar_status(inf_element, is_cancel: bool, assinatura: str) -> str:

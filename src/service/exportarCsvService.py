@@ -1,9 +1,8 @@
 import os
-import time
-import xlsxwriter
+import csv
 from src.models.cfeModel import CFeModel
 
-class ExportService:
+class ExportCsvService:
     def __init__(self):
         self._headers_cache = None
         
@@ -13,26 +12,62 @@ class ExportService:
             self._headers_cache = self._montarHeaders()
         return self._headers_cache
 
-    def gerarPlanilha(self, cfes_dict: dict, caminho_saida: str) -> str:
-        if not caminho_saida.lower().endswith(".xlsx"):
-            caminho_saida += ".xlsx"
+    def gerarCsv(self, cfes_dict: dict, caminho_saida: str) -> str:
+        if not caminho_saida.lower().endswith(".csv"):
+            caminho_saida += ".csv"
 
         os.makedirs(os.path.dirname(caminho_saida), exist_ok=True)
-        wb = xlsxwriter.Workbook(caminho_saida, {'constant_memory': True})
+
+        vendas_data = self._prepararDadosVendas(cfes_dict)
+        cancelados_data = self._prepararDadosCancelados(cfes_dict)
+        fora_padrao_data = self._prepararDadosForaPadrao(cfes_dict)
+
+        todas_linhas = []
+        
+        if vendas_data:
+            for linha in vendas_data:
+                todas_linhas.append(["VENDA"] + list(linha))
+        
+        if cancelados_data:
+            for linha in cancelados_data:
+                todas_linhas.append(["CANCELADO"] + list(linha))
+        
+        if fora_padrao_data:
+            for linha in fora_padrao_data:
+                linha_padrao = ["FORA_PADRAO"] + [linha[0]] + [linha[1]] + ["-"] * (len(self._headers) - 2)
+                todas_linhas.append(linha_padrao)
+
+        self._escreverCsv(caminho_saida, todas_linhas)
+        return caminho_saida
+
+    def gerarCsvSeparado(self, cfes_dict: dict, caminho_base: str) -> list:
+        arquivos_gerados = []
+        
+        if caminho_base.lower().endswith('.csv'):
+            caminho_base = caminho_base[:-4]
+        
+        os.makedirs(os.path.dirname(caminho_base), exist_ok=True)
 
         vendas_data = self._prepararDadosVendas(cfes_dict)
         cancelados_data = self._prepararDadosCancelados(cfes_dict)
         fora_padrao_data = self._prepararDadosForaPadrao(cfes_dict)
 
         if vendas_data:
-            self._escreverAba(wb, "Vendas", vendas_data)
-        if cancelados_data:
-            self._escreverAba(wb, "Cancelados", cancelados_data)
-        if fora_padrao_data:
-            self._escreverAbaForaPadrao(wb, fora_padrao_data)
+            caminho_vendas = f"{caminho_base}_vendas.csv"
+            self._escreverCsv(caminho_vendas, vendas_data)
+            arquivos_gerados.append(caminho_vendas)
 
-        wb.close()
-        return caminho_saida
+        if cancelados_data:
+            caminho_cancelados = f"{caminho_base}_cancelados.csv"
+            self._escreverCsv(caminho_cancelados, cancelados_data)
+            arquivos_gerados.append(caminho_cancelados)
+
+        if fora_padrao_data:
+            caminho_fora_padrao = f"{caminho_base}_fora_padrao.csv"
+            self._escreverCsvForaPadrao(caminho_fora_padrao, fora_padrao_data)
+            arquivos_gerados.append(caminho_fora_padrao)
+
+        return arquivos_gerados
 
     def _prepararDadosVendas(self, cfes_dict):
         vendas = cfes_dict.get("venda_validada", []) + cfes_dict.get("venda_presat", [])
@@ -130,20 +165,24 @@ class ExportService:
         
         return {}
 
-    def _escreverAba(self, wb, nome_aba: str, dados_linhas: list):
-        ws = wb.add_worksheet(nome_aba)
-        ws.write_row(0, 0, self._headers)
+    def _escreverCsv(self, caminho_arquivo: str, dados_linhas: list):
+        with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile, delimiter='|', quoting=csv.QUOTE_MINIMAL)
+            
+            writer.writerow(self._headers)
+            
+            for linha in dados_linhas:
+                writer.writerow(linha)
 
-        for row, linha in enumerate(dados_linhas, start=1):
-            ws.write_row(row, 0, linha)
-
-    def _escreverAbaForaPadrao(self, wb, dados_linhas: list):
-        ws = wb.add_worksheet("Fora do Padrão")
-        headers = ["Arquivo", "Motivo"]
-        ws.write_row(0, 0, headers)
-
-        for row, linha in enumerate(dados_linhas, start=1):
-            ws.write_row(row, 0, linha)
+    def _escreverCsvForaPadrao(self, caminho_arquivo: str, dados_linhas: list):
+        with open(caminho_arquivo, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile, delimiter='|', quoting=csv.QUOTE_MINIMAL)
+            
+            headers = ["Arquivo", "Motivo"]
+            writer.writerow(headers)
+            
+            for linha in dados_linhas:
+                writer.writerow(linha)
 
     def _montarHeaders(self):
         return (

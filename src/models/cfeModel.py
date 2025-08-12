@@ -21,7 +21,7 @@ class ItemModel:
     vItem12741: str = "-"
     impostos: Dict[str, Any] = None
     
-    def _postInitItemModel(self):
+    def __post_init__(self):
         if self.impostos is None:
             self.impostos = {}
 
@@ -42,7 +42,7 @@ class CFeModel:
     pagamentos: List[Dict[str, Any]] = None
     obsFisco: List[Dict[str, str]] = None
     
-    def _postInitCfeModel(self):
+    def __post_init__(self):
         if self.ide is None:
             self.ide = {}
         if self.emitente is None:

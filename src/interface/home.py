@@ -34,7 +34,8 @@ def HomePage(page: ft.Page):
 
     pasta_picker = ft.FilePicker()
     salvar_picker = ft.FilePicker()
-    page.overlay.extend([pasta_picker, salvar_picker])
+    csv_picker = ft.FilePicker()
+    page.overlay.extend([pasta_picker, salvar_picker, csv_picker])
 
     main_view = ft.Container(expand=True)
 
@@ -103,6 +104,7 @@ def HomePage(page: ft.Page):
                     erros=len(state['errors']),
                     lista_erros=state['errors'],
                     on_download=lambda e: salvar_picker.save_file(file_type="xlsx", dialog_title="Salvar planilha como..."),
+                    on_csv=lambda e: csv_picker.save_file(file_type="csv", dialog_title="Salvar CSV como..."),
                     on_new_folder=lambda e: resetar()
                 )
             ]),
@@ -201,6 +203,53 @@ def HomePage(page: ft.Page):
 
         threading.Thread(target=exportar, daemon=True).start()
 
+    def salvarCsv(e):
+        if not e.path:
+            notificacao(page, "Aviso", "Salvamento cancelado", tipo="alerta")
+            return
+
+        caminho_csv = e.path
+        if not caminho_csv.lower().endswith(".csv"):
+            caminho_csv += ".csv"
+
+        progresso_card = notificacaoProgresso(page)
+
+        def exportar():
+            resultado_exportacao = controller.exportarCsv(caminho_csv)
+            if progresso_card in page.overlay:
+                page.overlay.remove(progresso_card)
+                page.update()
+
+            def fecharDialog(e=None):
+                page.close(dialog)
+                page.update()
+
+            def abrirCsv(e=None):
+                import subprocess, sys
+                page.close(dialog)
+                page.update()
+                if sys.platform == "win32":
+                    os.startfile(caminho_csv)
+                else:
+                    subprocess.Popen(["open", caminho_csv])
+
+            if resultado_exportacao["status"] == "sucesso":
+                dialog = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("CSV gerado com sucesso!"),
+                    content=ft.Text("Deseja abrir o arquivo CSV agora?"),
+                    actions=[
+                        ft.TextButton("Abrir", on_click=abrirCsv),
+                        ft.TextButton("Fechar", on_click=fecharDialog)
+                    ],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+                page.open(dialog)
+            else:
+                notificacao(page, "Erro", resultado_exportacao["mensagem"], tipo="erro")
+
+        threading.Thread(target=exportar, daemon=True).start()
+
     def resetar():
         state.update({
             "status": ProcessingState.IDLE,
@@ -216,6 +265,7 @@ def HomePage(page: ft.Page):
 
     pasta_picker.on_result = pastaEscolhida
     salvar_picker.on_result = salvarPlanilha
+    csv_picker.on_result = salvarCsv
 
     page.add(ft.Container(
         content=ft.Column([main_view], expand=True, alignment=ft.MainAxisAlignment.CENTER),

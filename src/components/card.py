@@ -122,7 +122,7 @@ def processingCard(folder_name: str, processed: int, total: int, on_start=None):
         )
     return ft.Column(card_content, spacing=12)
 
-def completedCard(total_files: int, validos: int, cancelados: int, erros: int, lista_erros: list, on_download, on_new_folder):
+def completedCard(total_files: int, validos: int, cancelados: int, erros: int, lista_erros: list, on_download, on_csv, on_new_folder):
     th = theme.get_theme()
     card_content = [
         ft.Row([
@@ -153,6 +153,15 @@ def completedCard(total_files: int, validos: int, cancelados: int, erros: int, l
                 color=th["ON_PRIMARY"],
                 expand=True,
                 on_click=on_download,
+                height=38,
+            ),
+            ft.ElevatedButton(
+                "Baixar CSV",
+                icon=ft.Icons.DOWNLOAD,
+                bgcolor=th["PRIMARY_COLOR"],
+                color=th["ON_PRIMARY"],
+                expand=True,
+                on_click=on_csv,
                 height=38,
             ),
             ft.OutlinedButton(

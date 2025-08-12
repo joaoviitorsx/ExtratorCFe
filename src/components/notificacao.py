@@ -145,7 +145,7 @@ def notificacaoProgresso(page: ft.Page):
     }
 
     texto_titulo = ft.Text(
-        "Gerando planilha...",
+        "Gerando arquivo...",
         color=estilo["text"],
         weight="bold",
         size=15,
@@ -154,7 +154,7 @@ def notificacaoProgresso(page: ft.Page):
     )
 
     texto_mensagem = ft.Text(
-        "Aguarde enquanto a planilha está sendo gerada.",
+        "Aguarde enquanto a arquivo está sendo gerada.",
         color=estilo["text"],
         size=13,
         max_lines=3,
